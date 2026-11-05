@@ -1,0 +1,31 @@
+item	tier	group	kind	level	name
+248682	1	gathered	herbs	10	Waylaid Crate: Apprentice Herbs
+248683	1	gathered	ore	10	Waylaid Crate: Apprentice Ore
+248684	1	gathered	textiles	10	Waylaid Crate: Apprentice Textiles
+248685	1	gathered	curiosities	10	Waylaid Crate: Apprentice Curiosities
+248686	2	gathered	herbs	10	Waylaid Crate: Journeyman Herbs
+248687	2	gathered	ore	10	Waylaid Crate: Journeyman Ore
+248688	2	gathered	textiles	10	Waylaid Crate: Journeyman Textiles
+248689	2	gathered	curiosities	10	Waylaid Crate: Journeyman Curiosities
+248690	3	gathered	herbs	20	Waylaid Crate: Earthly Expert Herbs
+248691	3	gathered	herbs	20	Waylaid Crate: Flowering Expert Herbs
+248692	3	gathered	ore	20	Waylaid Crate: Expert Ore
+248693	3	gathered	textiles	20	Waylaid Crate: Expert Textiles
+248694	3	gathered	curiosities	20	Waylaid Crate: Expert Curiosities
+248695	4	gathered	herbs	35	Waylaid Crate: Earthly Artisan Herbs
+248696	4	gathered	herbs	35	Waylaid Crate: Flowering Artisan Herbs
+248697	4	gathered	ore	35	Waylaid Crate: Artisan Ore
+248698	4	gathered	textiles	35	Waylaid Crate: Artisan Textiles
+248699	4	gathered	curiosities	35	Waylaid Crate: Artisan Curiosities
+248702	1	crafted	fabrics	10	Waylaid Crate: Apprentice Fabrics
+248703	1	crafted	ingots	10	Waylaid Crate: Apprentice Ingots
+248704	1	crafted	parts	10	Waylaid Crate: Apprentice Parts
+248705	2	crafted	fabrics	10	Waylaid Crate: Journeyman Fabrics
+248706	2	crafted	ingots	10	Waylaid Crate: Journeyman Ingots
+248707	2	crafted	parts	10	Waylaid Crate: Journeyman Parts
+248708	3	crafted	fabrics	20	Waylaid Crate: Expert Fabrics
+248709	3	crafted	ingots	20	Waylaid Crate: Expert Ingots
+248710	3	crafted	parts	20	Waylaid Crate: Expert Parts
+248711	4	crafted	fabrics	35	Waylaid Crate: Artisan Fabrics
+248712	4	crafted	ingots	35	Waylaid Crate: Artisan Ingots
+248713	4	crafted	parts	35	Waylaid Crate: Artisan Parts

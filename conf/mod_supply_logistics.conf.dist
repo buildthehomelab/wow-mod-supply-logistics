@@ -1,0 +1,90 @@
+[worldserver]
+
+########################################
+# mod-supply-logistics
+#
+# WoW Forever's Supply and Logistics: Waylaid Crates, Sealed Writs, Merchant's Favor and the two
+# trade reputations. What crates take and pay is world SQL (tools/build_data.py); this file sets how
+# often things drop.
+########################################
+
+#
+#    SupplyLogistics.Enable
+#        Description: Master switch. With 0 nothing drops, the items do nothing when used and the
+#                     hand-ins pay no reputation (the quests still pay their Favor).
+#        Default:     1
+#
+
+SupplyLogistics.Enable = 1
+
+#
+#    SupplyLogistics.MinLevel
+#        Description: Players and mobs under this level take no part. Forever's crates need 10.
+#        Default:     10
+#
+
+SupplyLogistics.MinLevel = 10
+
+#
+#    SupplyLogistics.Crate.Chance
+#        Description: Percent chance, per player rewarded for the kill, that an open-world mob worth
+#                     experience to that player drops a Waylaid Crate. The mob's level sets the tier:
+#                     10-19 Apprentice, 20-29 Journeyman, 30-39 Expert, 40 and up Artisan.
+#        Default:     4
+#
+
+SupplyLogistics.Crate.Chance = 4
+
+#
+#    SupplyLogistics.Writ.Chance
+#        Description: Percent chance, the same way, of a Sealed Writ of the mob's tier.
+#        Default:     1
+#
+
+SupplyLogistics.Writ.Chance = 1
+
+#
+#    SupplyLogistics.Writ.HandInChance
+#        Description: Percent chance that handing in a Sealed crate also brings a Sealed Writ of its
+#                     tier (Elite: Artisan).
+#        Default:     25
+#
+
+SupplyLogistics.Writ.HandInChance = 25
+
+#
+#    SupplyLogistics.Elite.Chance
+#        Description: Percent chance that a dungeon or raid boss gives each player there a Sealed
+#                     Elite Crate.
+#        Default:     10
+#
+
+SupplyLogistics.Elite.Chance = 10
+
+#
+#    SupplyLogistics.Elite.MinLevel
+#        Description: Bosses under this level give no Elite crates.
+#        Default:     30
+#
+
+SupplyLogistics.Elite.MinLevel = 30
+
+#
+#    SupplyLogistics.ProfessionWeight
+#        Description: Percent chance that a crate or writ is picked among those that fit the player's
+#                     professions (herbs for herbalists and alchemists, parts for engineers, and so
+#                     on), when there are any. Otherwise every kind of the tier is as likely.
+#        Default:     50
+#
+
+SupplyLogistics.ProfessionWeight = 50
+
+#
+#    SupplyLogistics.CampNpcFlags
+#        Description: Give the camp NPCs (Forever's creature entries, see README) their quest giver
+#                     and vendor flags when they spawn, whatever their creature_template says. Set 0
+#                     if your own SQL sets those flags.
+#        Default:     1
+#
+
+SupplyLogistics.CampNpcFlags = 1
