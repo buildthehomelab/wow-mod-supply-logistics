@@ -7,7 +7,6 @@ DELETE FROM `creaturedisplayinfo_dbc` WHERE `ID` BETWEEN 95310 AND 95328;
 INSERT INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, `TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, `ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES
 (95310, 95310, 0, 0, 0.6, 255, 'T7935187', 'T7935186', '', '', 1, 0, 0, 0, 0, 0),
 (95311, 95311, 0, 0, 0.35, 255, 'T125604', '', '', '', -1, 0, 0, 0, 0, 0),
-(95312, 95311, 0, 0, 1, 255, 'T125604', '', '', '', -1, 0, 0, 0, 0, 0),
 (95313, 95312, 0, 0, 1, 255, '', '', '', '', 0, 0, 0, 0, 0, 0),
 (95314, 95313, 0, 0, 1, 255, '', '', '', '', 0, 0, 0, 0, 0, 0),
 (95315, 95314, 0, 0, 1, 255, '', '', '', '', 0, 0, 0, 0, 0, 0),
@@ -48,7 +47,6 @@ DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 95310 AND 95328;
 INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) VALUES
 (95310, 1.2, 2, 2, 0),
 (95311, 0.5, 1, 2, 0),
-(95312, 0.5, 1, 2, 0),
 (95313, 1, 1.5, 2, 0),
 (95314, 1, 1.5, 2, 0),
 (95315, 1, 1.5, 2, 0),

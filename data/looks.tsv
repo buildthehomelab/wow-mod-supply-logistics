@@ -1,7 +1,6 @@
 display	retail_display	model_fdid	form	tier	model	name	display_scale
 95310	145488		kodo	0	pack_kodo	Pack Kodo	
 95311	147969		mule	0	pack_mule	Minimule	0.35
-95312	147969		mule	0	pack_mule	Pack Mule	1
 95313	143353		sign	0	orc_sign_post	Orcish Tradeskill Signpost	
 95314	143356		sign	0	orc_sign_alchemy	Orcish Sign: Alchemy	
 95315	143357		sign	0	orc_sign_blacksmithing	Orcish Sign: Blacksmithing	
