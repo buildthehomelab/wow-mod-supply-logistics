@@ -8,7 +8,8 @@
   (www.wowhead.com/forever/npc=<id>, the listview's data), saved as one JSON object keyed by NPC id.
 - Everything else: Forever's client tables for build 1.60.1.70790 as wago.tools exports them
   (https://wago.tools/db2/<Table>/csv?build=1.60.1.70790, saved as w-<Table>.csv): ItemSparse, Item,
-  ItemEffect, ItemXItemEffect, SpellEffect, SpellReagents, SkillLineAbility.
+  ItemEffect, ItemXItemEffect, Spell, SpellName, SpellMisc, SpellDuration, SpellRadius, SpellRange,
+  SpellAuraOptions, SpellTargetRestrictions, SpellEffect, SpellReagents, SkillLineAbility.
 - Icon names: the community listfile (wowdev/wow-listfile), by IconFileDataID.
 
 Rows for other professions are kept, so the professions can be fetched one at a time, and so are the
@@ -23,6 +24,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -34,11 +36,19 @@ FAVOR_CURRENCY = 3402
 HORDE_VENDORS = {248196, 248197, 248198, 248199, 248200, 248201, 248202}
 ALLIANCE_VENDORS = {256729, 256730, 256731, 256732, 256733, 256734, 256735}
 EFFECT_TRIGGER_SPELL, EFFECT_CREATE_ITEM, EFFECT_LEARN_SPELL, EFFECT_APPLY_AURA = 64, 24, 36, 6
-AURA_MOD_STAT, AURA_PERIODIC_TRIGGER_SPELL_WITH_VALUE = 29, 227
+AURA_DUMMY, AURA_PERIODIC_DAMAGE, AURA_MOD_STAT, AURA_PERIODIC_TRIGGER_SPELL_WITH_VALUE = 4, 3, 29, 227
+EFFECT_SCHOOL_DAMAGE, EFFECT_TRIGGER_MISSILE, EFFECT_CREATE_AREATRIGGER = 2, 32, 179
+TARGET_UNIT_CASTER, TARGET_CONE = 1, 104
+PROC_TAKEN_PERIODIC = 0x80000
+# Buff auras a 3.3.5a client and core share with Forever, as Forever's number -> ours. Retail's flat
+# armor (674) is the old resistance aura on Physical.
+BUFF_AURAS = {13: 13, 22: 22, 29: 29, 34: 34, 85: 85, 99: 99, 124: 124, 135: 135, 161: 161, 180: 180, 290: 290,
+              674: 22}
+ITEM_SUBCLASS_POTION, ITEM_SUBCLASS_ELIXIR = 1, 2
 TRIGGER_LEARN = 6
 COLUMNS = ["skill", "recipe", "name", "favor", "sides", "learn", "yellow", "grey", "product", "product_name",
            "made", "reagents", "recipe_icon", "product_icon", "product_class", "product_subclass", "item_level",
-           "required_level", "stack", "sell", "use"] + ID_COLUMNS
+           "required_level", "stack", "sell", "use", "use_text", "use_aura_text"] + ID_COLUMNS
 
 
 def table(folder, name, key="ID", multi=False):
@@ -100,12 +110,52 @@ def main():
     effects = table(args.wago, "SpellEffect", "SpellID", multi=True)
     reagents = table(args.wago, "SpellReagents", "SpellID")
     abilities = table(args.wago, "SkillLineAbility", "Spell", multi=True)
+    texts, names = table(args.wago, "Spell"), table(args.wago, "SpellName")
+    # Each spell's normal-difficulty rows (a spell can have more, for heroic dungeons).
+    misc = {k: [r for r in v if r["DifficultyID"] == "0"] or v
+            for k, v in table(args.wago, "SpellMisc", "SpellID", multi=True).items()}
+    cones = {k: [r for r in v if r["DifficultyID"] == "0"] or v
+             for k, v in table(args.wago, "SpellTargetRestrictions", "SpellID", multi=True).items()}
+    durations, radii = table(args.wago, "SpellDuration"), table(args.wago, "SpellRadius")
+    ranges, aura_options = table(args.wago, "SpellRange"), table(args.wago, "SpellAuraOptions", "SpellID", multi=True)
+
+    def duration(spell):
+        return int(durations[int(misc[spell][0]["DurationIndex"])]["Duration"])
+
+    def radius(e):
+        return int(float(radii[int(e["EffectRadiusIndex_0"])]["Radius"]))
+
+    def amount(e):
+        return int(float(e["EffectBasePointsF"]))
+
+    def school(spell):
+        return int(misc[spell][0]["SchoolMask"])
+
+    def text(spell):
+        """Forever's tooltip, in the tokens a 3.3.5a client knows ($w is $s there)."""
+        t = texts.get(spell, {})
+        out = [t.get(k, "").replace("$w", "$s").replace("$s~", "$s").replace("\r", "").replace("\n", " ")
+               for k in ("Description_lang", "AuraDescription_lang")]
+        return out
+
+    def check_text(product, kind, both):
+        """Kinds whose tooltip is Forever's may use only their own spell's tokens a 3.3.5a client reads."""
+        if kind not in ("buff", "cone"):
+            return
+        for t in both:
+            bad = [m for m in re.findall(r"\$[^\s.,;:)%]*", t) if not re.fullmatch(r"\$[sdtmo]\d?", m)]
+            if bad:
+                sys.exit("item %d: tooltip tokens %s" % (product, bad))
 
     def item_spells(entry):
         return [item_effects[int(x["ItemEffectID"])] for x in links.get(entry, [])]
 
     def spell_effects(spell):
         return sorted(effects.get(spell, []), key=lambda e: int(e["EffectIndex"]))
+
+    def use_texts(product):
+        uses = item_spells(product)
+        return text(int(uses[0]["SpellID"])) if uses else ["", ""]
 
     def describe_use(product):
         """The product's use, in the terms catalog.py builds it from."""
@@ -124,8 +174,44 @@ def main():
             if len(fed) != 1 or int(fed[0]["EffectAura"]) != AURA_MOD_STAT:
                 sys.exit("item %d: its Well Fed isn't a single stat" % product)
             stat = int(fed[0]["EffectMiscValue_0"])
-            amount = int(float(effs[1]["EffectBasePointsF"]))
-            return "drink %d stat %d %d" % (drink, stat, amount)
+            gain = int(float(effs[1]["EffectBasePointsF"]))
+            return "drink %d stat %d %d" % (drink, stat, gain)
+        kinds = [(int(e["Effect"]), int(e["EffectAura"]), int(e["ImplicitTarget_0"])) for e in effs]
+        sub = int(item[product]["SubclassID"])
+        # A buff on yourself: an elixir or a potion, every effect an aura we have too.
+        if kinds and all(k[0] == EFFECT_APPLY_AURA and k[1] in BUFF_AURAS and k[2] == TARGET_UNIT_CASTER for k in kinds) \
+                and sub in (ITEM_SUBCLASS_POTION, ITEM_SUBCLASS_ELIXIR):
+            # Retail's armor aura is ours on Physical (school mask 1) whatever its misc says.
+            auras = ["%d:%s:%d" % (BUFF_AURAS[int(e["EffectAura"])],
+                                   1 if int(e["EffectAura"]) == 674 else e["EffectMiscValue_0"], amount(e)) for e in effs]
+            return "buff %s %d %s" % ("elixir" if sub == ITEM_SUBCLASS_ELIXIR else "potion", duration(spell), " ".join(auras))
+        # Dragonfire: a hit in a cone in front of you, and a burn on what it hits.
+        if kinds == [(EFFECT_SCHOOL_DAMAGE, 0, TARGET_CONE), (EFFECT_APPLY_AURA, AURA_PERIODIC_DAMAGE, TARGET_CONE)]:
+            degrees = int(float(cones.get(spell, [{}])[0].get("ConeDegrees") or 0))
+            if not degrees:
+                sys.exit("item %d: its cone has no width" % product)
+            return "cone %d %d %d %d %d %d %d" % (duration(spell), radius(effs[0]), school(spell), amount(effs[0]),
+                                                   amount(effs[1]), int(effs[1]["EffectAuraPeriod"]), degrees)
+        # Caustic Smog: thrown at the ground, a cloud (an area trigger in Forever) whose damage spell has
+        # the potion's name.
+        if kinds and kinds[0][0] == EFFECT_TRIGGER_MISSILE:
+            cloud = int(effs[0]["EffectTriggerSpell"])
+            if [int(e["Effect"]) for e in spell_effects(cloud)] != [EFFECT_CREATE_AREATRIGGER]:
+                sys.exit("item %d: the missile doesn't make an area" % product)
+            ticks = [sid for sid, n in names.items() if n["Name_lang"] == names[spell]["Name_lang"]
+                     and [int(e["EffectAura"]) for e in spell_effects(sid)] == [AURA_PERIODIC_DAMAGE]]
+            if len(ticks) != 1:
+                sys.exit("item %d: %d damage spells for its cloud" % (product, len(ticks)))
+            tick = spell_effects(ticks[0])[0]
+            reach = int(float(ranges[int(misc[spell][0]["RangeIndex"])]["RangeMax_0"]))
+            return "cloud %d %d %d %d %d %d" % (duration(cloud), radius(effs[0]), school(ticks[0]), amount(tick),
+                                                 int(tick["EffectAuraPeriod"]), reach)
+        # Venomous Blood: doses on you; each bleed tick you take spreads one to an enemy near you, where
+        # it does its damage when it runs out.
+        options = aura_options.get(spell, [{}])[0]
+        if kinds == [(EFFECT_APPLY_AURA, AURA_DUMMY, TARGET_UNIT_CASTER)] * 2 \
+                and int(options.get("ProcTypeMask_0") or 0) == PROC_TAKEN_PERIODIC:
+            return "venom %d %s %d %d" % (duration(spell), options["CumulativeAura"], amount(effs[0]), amount(effs[1]))
         sys.exit("item %d: use spell %d isn't a kind this tool knows" % (product, spell))
 
     rows = []
@@ -147,6 +233,8 @@ def main():
         r = reagents[craft]
         parts = ["%s:%s" % (r["Reagent_%d" % i], r["ReagentCount_%d" % i]) for i in range(8) if int(r["Reagent_%d" % i])]
         ps = sparse[product]
+        use = describe_use(product)
+        check_text(product, use.split(" ")[0], use_texts(product))
         rows.append({
             "skill": args.skill, "recipe": recipe, "name": rs["Display_lang"], "favor": favor,
             "sides": "both" if sides == {"A", "H"} else {"A": "alliance", "H": "horde"}[next(iter(sides))],
@@ -156,7 +244,8 @@ def main():
             "product_icon": int(item[product]["IconFileDataID"]), "product_class": item[product]["ClassID"],
             "product_subclass": item[product]["SubclassID"], "item_level": ps["ItemLevel"],
             "required_level": ps["RequiredLevel"], "stack": ps["Stackable"], "sell": ps["SellPrice"],
-            "use": describe_use(product),
+            "use": use,
+            "use_text": use_texts(product)[0], "use_aura_text": use_texts(product)[1],
         })
     if not rows:
         sys.exit("no recipes for skill %d" % args.skill)

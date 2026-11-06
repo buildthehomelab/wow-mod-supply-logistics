@@ -46,8 +46,10 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dbcmpq  # noqa: E402
 from dbcmpq import add_string, read_dbc, string_at, write_dbc  # noqa: E402
-from catalog import (CRAFT_TEMPLATE, DRINK_ICON, DRINK_TEMPLATE, ICON_DISPLAYS, ICON_DISPLAY_TEMPLATE,  # noqa: E402
-                     STAT_NAMES, WELL_FED_ICON, WELL_FED_TEMPLATE, new_displays, recipes)
+from catalog import (BUFF_TEMPLATE, CLOUD_TEMPLATE, CONE_TEMPLATE, CRAFT_TEMPLATE, DRINK_ICON, DRINK_TEMPLATE,  # noqa: E402
+                     ELIXIR_DURATION_MS, ICON_DISPLAYS, ICON_DISPLAY_TEMPLATE, ITEM_CATEGORY, PROC_FLAG_TAKEN_PERIODIC,
+                     RECIPE_BLOCKS, STAT_NAMES, WELL_FED_ICON, WELL_FED_TEMPLATE, buff_auras, elixir_group, new_displays,
+                     product_kind, recipes)
 from catalog import (COMPLETED_FORMS, COSTS, CURRENCY_BIT, CURRENCY_CATEGORY, CURRENCY_ID, FACTIONS, FAVOR,  # noqa: E402
                      FORM_CAST_TIME, FORM_TEMPLATE, ITEM_DISPLAYS, MOUNT_SPELLS, PET_SPELLS, SIGNPOST_CAST_TIME,
                      SIGNPOST_COOLDOWN, SIGNPOST_DURATION, SIGNPOST_RADIUS, SIGNPOSTS, SKILL_COMPANIONS, SKILL_MOUNTS,
@@ -59,7 +61,11 @@ F_CATEGORY, F_ATTRIBUTES, F_ATTRIBUTES_LAST = 1, 4, 11
 F_CAST_TIME, F_RECOVERY, F_CATEGORY_RECOVERY, F_INTERRUPT = 28, 29, 30, 31
 F_LEVELS, F_DURATION, F_RANGE = (37, 38, 39), 40, 46
 F_REAGENTS, F_REAGENT_COUNTS = 52, 60
-F_ITEM_TYPE, F_AMPLITUDE, F_TRIGGER = 107, 98, 116
+F_ITEM_TYPE, F_AMPLITUDE, F_TRIGGER, F_RADIUS = 107, 98, 116, 92
+F_TARGETS, F_MECHANIC, F_PROC_FLAGS, F_PROC_CHANCE, F_STACK = 16, 3, 34, 35, 49
+F_MAX_TARGETS, F_DAMAGE_CLASS, F_PREVENTION, F_DAMAGE_MULTIPLIER = 212, 213, 214, 216
+ONE = 0x3F800000                            # 1.0f
+F_DESCRIPTION_VARIABLES, F_DIFFICULTY = 232, 233
 F_EFFECT, F_DIE_SIDES, F_BASE_POINTS, F_TARGET_A, F_AURA, F_MISC = 71, 74, 80, 86, 95, 110
 F_VISUAL, F_ICON, F_ACTIVE_ICON, F_NAME, F_SUBTEXT, F_DESCRIPTION, F_AURA_TEXT = 131, 133, 134, 136, 153, 170, 187
 F_GCD_CATEGORY, F_GCD, F_FAMILY, F_SCHOOL = 205, 206, 208, 225
@@ -70,6 +76,9 @@ SIGNED_FIELDS = {0, 13, 15, 41, *range(52, 71), 74, 75, 76, 80, 81, 82, *range(1
 EFFECT_DUMMY, TARGET_UNIT_CASTER, CAST_INSTANT, RANGE_SELF = 3, 1, 1, 1
 EFFECT_CREATE_ITEM, EFFECT_APPLY_AURA = 24, 6
 AURA_MOD_STAT, AURA_PERIODIC_TRIGGER_SPELL, AURA_MOD_POWER_REGEN, AURA_PERIODIC_DUMMY = 29, 23, 85, 226
+AURA_DUMMY, AURA_PERIODIC_DAMAGE, EFFECT_SCHOOL_DAMAGE, EFFECT_PERSISTENT_AREA_AURA = 4, 3, 2, 27
+TARGET_UNIT_TARGET_ENEMY, TARGET_CONE_ENEMY, TARGET_DEST_DEST, TARGET_DEST_DYNOBJ_ENEMY = 6, 24, 87, 28
+RANGE_ANYWHERE, SCHOOL_NATURE = 13, 8
 SKILL_LEARNED_ON_SKILL_VALUE = 1
 DUMMY_TEMPLATE = 54710                      # MOLL-E: a plain instant spell to start from
 LANG_MASK = 16712190                        # the enUS string plus the flags every stock row has
@@ -146,7 +155,58 @@ def add_spell_icons(path):
 
 # --- Spell.dbc + SkillLineAbility.dbc -------------------------------------------------------------
 
-def add_spells(files):
+class Looks:
+    """The client's durations, radii and ranges by value, and the spell icons the recipes need, given ids
+    from their profession's block where the client has none."""
+
+    def __init__(self, files, client_tables, icons):
+        self.icons, self.files = icons, files
+        f = lambda v: struct.unpack("<f", struct.pack("<I", v))[0]
+        rows = lambda name: read_dbc(client_tables(name))[0]
+        self.durations = {r[1]: r[0] for r in rows("SpellDuration") if r[2] == 0 and r[3] == r[1]}
+        self.radii = {f(r[1]): r[0] for r in reversed(rows("SpellRadius")) if f(r[2]) == 0}
+        self.ranges = {f(r[3]): r[0] for r in reversed(rows("SpellRange")) if f(r[1]) == 0 and f(r[3]) == f(r[4])}
+        self.new_icons = []
+
+    def duration(self, ms):
+        if ms not in self.durations:
+            sys.exit("SpellDuration.dbc has no %d ms" % ms)
+        return self.durations[ms]
+
+    def radius(self, yards):
+        if float(yards) not in self.radii:
+            sys.exit("SpellRadius.dbc has no %d yards" % yards)
+        return self.radii[float(yards)]
+
+    def range(self, yards):
+        if float(yards) not in self.ranges:
+            sys.exit("SpellRange.dbc has no %d yards" % yards)
+        return self.ranges[float(yards)]
+
+    def icon(self, name, skill):
+        """A SpellIcon id for an icon name: the client's, or a new row from the profession's block."""
+        if name.lower() not in self.icons:
+            base, size = RECIPE_BLOCKS[skill]
+            used = {i for i, _n in self.new_icons} | set(self.icons.values())
+            at = next(i for i in range(base, base + size) if i not in used)
+            self.new_icons.append((at, name))
+            self.icons[name.lower()] = at
+        return self.icons[name.lower()]
+
+
+def add_recipe_spell_icons(files, new_icons):
+    path = dbc_path(files, "SpellIcon")
+    rows, strings, fields = read_dbc(path)
+    for icon_id, name in new_icons:
+        old = next((r for r in rows if r[0] == icon_id), None)
+        if old and string_at(strings, old[1]).split("\\")[-1].lower() != name.lower():
+            sys.exit("SpellIcon.dbc row %d is taken" % icon_id)
+        put(rows, [icon_id, add_string(strings, "Interface\\Icons\\" + name)])
+        print("SpellIcon.dbc %d %s" % (icon_id, name))
+    write_dbc(path, rows, strings, fields)
+
+
+def add_spells(files, client_tables):
     path = dbc_path(files, "Spell")
     spells, strings, fields = read_dbc(path)
     if fields != SPELL_FIELDS:
@@ -243,8 +303,9 @@ def add_spells(files):
             put(abilities, [spell_id, skill, spell_id, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])
             lines.append(next(a for a in abilities if a[0] == spell_id))
 
+    looks = Looks(files, client_tables, icons)
     for r in recipes():
-        add_recipe_spells(r, by_id, icons, start, finish)
+        add_recipe_spells(r, by_id, icons, start, finish, looks)
         old = next((a for a in abilities if a[0] == r["craft"]), None)
         if old and old[2] != r["craft"]:
             sys.exit("SkillLineAbility.dbc row %d is taken" % r["craft"])
@@ -255,10 +316,38 @@ def add_spells(files):
         lines.append(row)
     write_dbc(path, spells, strings, fields)
     write_dbc(abilities_path, abilities, ability_strings, ability_fields)
+    add_recipe_spell_icons(files, looks.new_icons)
     return made, lines
 
 
-def add_recipe_spells(r, by_id, icons, start, finish):
+def clear_effects(row):
+    for index in (0, 1, 2):
+        for f in effect_fields(index):
+            row[f] = 0
+
+
+def set_effect(row, index, effect, target, amount, aura=0, misc=0, period=0, trigger=0, radius=0, target_b=0):
+    """One effect, as a 3.3.5a row holds it: the amount is base points + 1 die side."""
+    row[F_EFFECT + index], row[F_TARGET_A + index], row[F_TARGET_A + 3 + index] = effect, target, target_b
+    row[F_DIE_SIDES + index], row[F_BASE_POINTS + index] = 1, (amount - 1) & 0xFFFFFFFF
+    row[F_AURA + index], row[F_MISC + index] = aura, misc & 0xFFFFFFFF
+    row[F_AMPLITUDE + index], row[F_TRIGGER + index], row[F_RADIUS + index] = period, trigger, radius
+    row[F_DAMAGE_MULTIPLIER + index] = ONE        # every target takes it all (a chain spell's falloff)
+
+
+def potion_like(row, r, looks, icon_name):
+    """What every product spell shares: instant, no cooldown of its own (the item's), its icon."""
+    row[F_CATEGORY] = ITEM_CATEGORY[product_kind(r)][0]
+    row[F_CAST_TIME], row[F_RECOVERY], row[F_CATEGORY_RECOVERY] = CAST_INSTANT, 0, 0
+    row[F_STACK], row[F_PROC_FLAGS], row[F_MAX_TARGETS], row[F_MECHANIC] = 0, 0, 0, 0
+    row[F_GCD_CATEGORY] = 0                       # an NPC template's own global cooldown group
+    row[F_DESCRIPTION_VARIABLES], row[F_DIFFICULTY] = 0, 0       # and its heroic variant
+    for f in F_LEVELS:
+        row[f] = 0
+    row[F_ICON] = looks.icon(icon_name, r["skill"])
+
+
+def add_recipe_spells(r, by_id, icons, start, finish, looks):
     """A recipe's craft spell, and its product's use spells."""
     craft = start(r["craft"], CRAFT_TEMPLATE[r["skill"]], r["product_name"])
     for f in range(8):
@@ -272,6 +361,9 @@ def add_recipe_spells(r, by_id, icons, start, finish):
 
     if not r["use"]:
         return
+    kind = r["use"][0]
+    if kind != "drink":
+        return add_alchemy_spells(r, by_id, start, finish, looks)
     kind, stock_drink, _stat_word, stat, amount = r["use"]
     stock_drink, stat, amount = int(stock_drink), int(stat), int(amount)
     drink_id, fed_id = r["use_spells"]
@@ -308,6 +400,84 @@ def add_recipe_spells(r, by_id, icons, start, finish):
     fed[F_ICON] = icons[WELL_FED_ICON]
     finish(fed, "Well Fed", "A tasty drink has made you Well Fed, increasing your %s by $s1." % STAT_NAMES[stat],
            "%s increased by $s1." % STAT_NAMES[stat])
+
+
+def add_alchemy_spells(r, by_id, start, finish, looks):
+    """Elixirs and potions (a buff on you), Dragonfire (a cone), Caustic Smog (a cloud), Venomous Blood."""
+    kind, icon, name = r["use"][0], r["product_icon"], r["product_name"]
+    spells = r["use_spells"]
+    if kind == "buff":
+        group = elixir_group(r) if r["use"][1] == "elixir" else "potion"
+        row = start(spells[0], BUFF_TEMPLATE[group], name)
+        clear_effects(row)
+        for index, (aura, misc, amount) in enumerate(buff_auras(r)):
+            # An elixir's first effect names its craft spell, as the stock ones: Mixology looks there.
+            trigger = r["craft"] if index == 0 and r["use"][1] == "elixir" else 0
+            set_effect(row, index, EFFECT_APPLY_AURA, TARGET_UNIT_CASTER, amount, aura=aura, misc=misc, trigger=trigger)
+        row[F_FAMILY] = by_id[BUFF_TEMPLATE[group]][F_FAMILY]       # Potion, as the stock elixirs
+        ms = ELIXIR_DURATION_MS if r["use"][1] == "elixir" else int(r["use"][2])
+        row[F_DURATION] = looks.duration(ms)
+        potion_like(row, r, looks, icon)
+        return finish(row, name, r["use_text"], r["use_aura_text"])
+    if kind == "cone":
+        ms, yards, school, hit, tick, period, _degrees = (int(x) for x in r["use"][1:])
+        row = start(spells[0], CONE_TEMPLATE, name)
+        clear_effects(row)
+        for f in range(F_ATTRIBUTES, F_ATTRIBUTES_LAST + 1):
+            row[f] = 0
+        row[F_INTERRUPT] = 0
+        radius = looks.radius(yards)
+        set_effect(row, 0, EFFECT_SCHOOL_DAMAGE, TARGET_CONE_ENEMY, hit, radius=radius)
+        set_effect(row, 1, EFFECT_APPLY_AURA, TARGET_CONE_ENEMY, tick, aura=AURA_PERIODIC_DAMAGE, period=period,
+                   radius=radius)
+        row[F_DURATION], row[F_RANGE], row[F_SCHOOL] = looks.duration(ms), RANGE_SELF, school
+        row[F_DAMAGE_CLASS], row[F_PREVENTION] = 0, 0           # as an item's damage, like a grenade's
+        potion_like(row, r, looks, icon)
+        return finish(row, name, r["use_text"], r["use_aura_text"])
+    if kind == "cloud":
+        ms, yards, school, tick, period, reach = (int(x) for x in r["use"][1:])
+        row = start(spells[0], CLOUD_TEMPLATE, name)
+        clear_effects(row)
+        set_effect(row, 0, EFFECT_PERSISTENT_AREA_AURA, TARGET_DEST_DEST, tick, aura=AURA_PERIODIC_DAMAGE,
+                   period=period, radius=looks.radius(yards), target_b=TARGET_DEST_DYNOBJ_ENEMY)
+        row[F_DURATION], row[F_RANGE], row[F_SCHOOL] = looks.duration(ms), looks.range(reach), school
+        potion_like(row, r, looks, icon)
+        return finish(row, name, "Throw a fragile concoction at the target area, revealing a cloud of %s for $d. "
+                      "Enemies standing within the cloud suffer $s1 Nature damage every $t1 sec." % name.replace(" Potion", ""), "")
+    if kind == "venom":
+        ms, doses, damage, yards = (int(x) for x in r["use"][1:])
+        buff_id, dose_id, hit_id = spells
+        buff = start(buff_id, BUFF_TEMPLATE["potion"], "Venomous Blood")
+        clear_effects(buff)
+        set_effect(buff, 0, EFFECT_APPLY_AURA, TARGET_UNIT_CASTER, damage, aura=AURA_DUMMY, trigger=dose_id)
+        set_effect(buff, 1, EFFECT_APPLY_AURA, TARGET_UNIT_CASTER, yards, aura=AURA_DUMMY)
+        buff[F_FAMILY] = by_id[BUFF_TEMPLATE["potion"]][F_FAMILY]
+        buff[F_DURATION] = looks.duration(ms)
+        potion_like(buff, r, looks, icon)
+        buff[F_STACK], buff[F_PROC_FLAGS], buff[F_PROC_CHANCE] = doses, PROC_FLAG_TAKEN_PERIODIC, 100
+        finish(buff, "Venomous Blood",
+               "Gain %d doses of Venomous Blood. Whenever you suffer Bleed damage, one dose is spread to the nearest "
+               "enemy within $s2 yds. Lasts up to $d.  A dose deals $s1 Nature damage when it expires." % doses,
+               "Whenever you suffer Bleed damage, one dose is splashed onto the nearest enemy within $s2 yds.")
+        dose = start(dose_id, BUFF_TEMPLATE["potion"], "Venomous Blood")
+        clear_effects(dose)
+        set_effect(dose, 0, EFFECT_APPLY_AURA, TARGET_UNIT_TARGET_ENEMY, damage, aura=AURA_DUMMY, trigger=hit_id)
+        dose[F_FAMILY], dose[F_DURATION], dose[F_RANGE] = 0, looks.duration(ms), RANGE_ANYWHERE
+        potion_like(dose, r, looks, icon)
+        dose[F_STACK] = 99
+        dose[F_CATEGORY], dose[F_VISUAL] = 0, 0       # not Speed's quaff on the enemy
+        for f in range(F_ATTRIBUTES, F_ATTRIBUTES_LAST + 1):
+            dose[f] = 0
+        finish(dose, "Venomous Blood", "",
+               "A nearby bleeding target has splashed Venomous Blood onto you.  When this effect expires, you will "
+               "suffer $s1 Nature damage for each dose.")
+        hit = start(hit_id, DUMMY_TEMPLATE, "Venomous Blood")
+        clear_effects(hit)
+        set_effect(hit, 0, EFFECT_SCHOOL_DAMAGE, TARGET_UNIT_TARGET_ENEMY, damage)
+        hit[F_RANGE], hit[F_SCHOOL], hit[F_DURATION] = RANGE_ANYWHERE, SCHOOL_NATURE, 0
+        hit[F_CAST_TIME], hit[F_ICON], hit[F_VISUAL] = CAST_INSTANT, looks.icon(icon, r["skill"]), 0
+        return finish(hit, "Venomous Blood", "")
+    sys.exit("recipe %d: no spells for %r" % (r["recipe"], kind))
 
 
 # --- ItemDisplayInfo.dbc ---------------------------------------------------------------------------
@@ -547,7 +717,15 @@ def main():
             if not dbc_path(files, name):
                 sys.exit("%s has no %s.dbc" % (args.patch, name))
         add_spell_icons(dbc_path(files, "SpellIcon"))
-        spells, abilities = add_spells(files)
+        def client_tables(name):
+            path = os.path.join(tmp, "client-" + name + ".dbc")
+            if not os.path.exists(path):
+                if not args.client:
+                    sys.exit("the recipes need the client's %s.dbc: pass --client" % name)
+                dbcmpq.client_file(args.client, "enUS", "DBFilesClient\\%s.dbc" % name, path)
+            return path
+
+        spells, abilities = add_spells(files, client_tables)
         add_items(files)
         add_item_displays(dbc_path(files, "ItemDisplayInfo"))
         add_displays(files, args.client)

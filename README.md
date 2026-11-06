@@ -121,11 +121,55 @@ sells Forever's two stock recipes for coin: Smoked Sagefish (5 silver) and Sagef
 | Spicy Smoothie | 60 | Friendly | 200 | Moonberry Juice, 3 Soothing Spices, Small Flame Sac | level 35, 1,992 mana | 15 Spirit |
 | Wicked Smoothie | 90 | Honored | 250 | Morning Glory Dew, 4 Soothing Spices, Wicked Claw | level 45, 2,934 mana | 20 Spirit |
 
+**Alchemy** (the alchemist): 18 elixirs and 10 potions, with Forever's reagents and numbers.
+- **Elixirs** last an hour, as the stock ones do (Forever's last 30 minutes). Each is a battle or a
+  guardian elixir, and stacks with stock ones by the same rule:
+  - **Guardian:** health, armor, regeneration, Intellect or Spirit alone.
+  - **Battle:** anything with Strength, Agility, power, healing or crit.
+- **Potions** share the stock potion cooldown.
+
+| Elixir | Favor | Needs | Learn at | Gives |
+| --- | --- | --- | --- | --- |
+| Elixir of Lesser Spirit | 45 | | 65 | 6 Spirit |
+| Lesser Mageblood Elixir | 45 | | 75 | 6 mana every 5 sec |
+| Lesser Cleric's Elixir | 45 | | 95 | 20 healing |
+| Elixir of Lesser Intellect | 45 | | 95 | 6 Intellect |
+| Lesser Arcane Elixir | 45 | | 120 | 15 spell damage |
+| Elixir of Greater Spirit | 120 | Friendly | 165 | 18 Spirit |
+| Greater Mageblood Elixir | 120 | Friendly | 175 | 20 mana every 5 sec |
+| Greater Cleric's Elixir | 120 | Friendly | 195 | 40 healing |
+| Elixir of Greater Fortitude | 120 | Friendly | 200 | 400 health |
+| Elixir of the Phalanx | 180 | Honored | 250 | 400 health, 500 armor |
+| Elixir of Cunning | 180 | Honored | 275 | 25 Agility and Intellect |
+| Elixir of Sages | 180 | Honored | 275 | 25 Spirit, 2% crit |
+| Elixir of the Whale | 180 | Honored | 275 | 25 Spirit, 2% crit |
+| Elixir of Ferocity | 180 | Honored | 275 | 18 Strength and Agility |
+| Elixir of the Owl | 180 | Honored | 280 | 25 Intellect, 2% crit |
+| Elixir of Wicked Regeneration | 180 | Honored | 285 | 9 health and 10 mana every 5 sec |
+| Elixir of Nature Power | 180 | Honored | 285 | 40 Nature spell damage |
+| Elixir of the Grizzly | 240 | Honored | 300 | 25 Strength, 2% crit |
+
+| Potion | Favor | Needs | Learn at | Does |
+| --- | --- | --- | --- | --- |
+| Mender's Potion | 45 | | 130 | 31 healing for 30 sec |
+| Spellblasting Potion | 45 | | 135 | 16 spell damage for 30 sec |
+| Frenzy Potion | 45 | | 140 | 28 attack power for 30 sec |
+| Dragonfire Potion | 120 | Friendly | 245 | 280 Fire damage in a cone in front of you, then 35 every 2 sec for 8 sec |
+| Caustic Smog Potion | 180 | Honored | 265 | Thrown: a cloud for 12 sec, 33 Nature damage a second to enemies in it |
+| Potion of Venomous Blood | 180 | Honored | 275 | 10 doses for 20 sec. Each bleed tick you take moves one to the nearest enemy within 8 yards; there it deals 325 Nature damage when it runs out |
+| Major Mender's Potion | 180 | Honored | 280 | 88 healing for 30 sec |
+| Potion of Elemental Purging | 180 | Honored | 280 | 105 spell damage against elementals for 5 min |
+| Major Spellblasting Potion | 180 | Honored | 285 | 47 spell damage for 30 sec |
+| Major Frenzy Potion | 240 | Honored | 290 | 80 attack power for 30 sec |
+
+The damage potions don't grow with spell power, as in Forever. A Venomous Blood dose hurts only the
+enemy it lands on; Forever's tooltip hints that the doses left on you hurt you too.
+
 Forever's tables put no reputation on the recipes themselves (its vendors gate them, in data that
 isn't public), so the ranks are ours, by price. A gated recipe is two items: Forever's for the Horde
 and a copy for the Alliance, since an item can ask for one faction only.
 
-**Not yet:** the other 310 recipes (Alchemy, Engineering, Enchanting, Blacksmithing, Tailoring and
+**Not yet:** the other 282 recipes (Engineering, Enchanting, Blacksmithing, Tailoring and
 Leatherworking; the prices are already in the extended costs).
 
 ## Install
