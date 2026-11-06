@@ -242,10 +242,12 @@ DISPLAY = {
 # (also its SkillLineAbility id), the product's use spells, the Alliance copy of a rank-gated recipe,
 # and displays for icons the client has no display for. They are stored in recipes.tsv once given
 # (assign_ids), so a later fetch never moves them: players' learned spells and bags hold these ids.
-RECIPE_BLOCKS = {185: (91100, 50), 171: (91150, 100)}   # Cooking 91100-91149, Alchemy 91150-91249; the rest in PLAN.md
+RECIPE_BLOCKS = {185: (91100, 50), 171: (91150, 100), 202: (91250, 100)}
+# Cooking 91100-91149, Alchemy 91150-91249, Engineering 91250-91349; the rest in PLAN.md
+SKILL_ENGINEERING = 202
 SKILL_ALCHEMY = 171
 SKILL_COOKING = 185
-RECIPE_SUBCLASS = {185: 5, 171: 6}
+RECIPE_SUBCLASS = {185: 5, 171: 6, 202: 3}
 # Ids up to here are the client's own items: a recipe whose product is one gets no item row of ours.
 STOCK_ITEM_MAX = 56806                 # the 3.3.5a client's last item
 # Rank gates. Forever's tables have none on the items (its vendors gate them), and Wowhead shows
@@ -280,7 +282,10 @@ VENOM_SCRIPTS = ("spell_supply_venomous_blood", "spell_supply_venomous_blood_dos
 PROC_FLAG_TAKEN_PERIODIC, PROC_SPELL_TYPE_DAMAGE = 0x80000, 1
 # Our spells for a product's use, by kind: a drink and its Well Fed; a buff; Dragonfire's cone; Caustic
 # Smog's cloud; Venomous Blood's doses, the dose it spreads and the damage a dose does when it runs out.
-USE_SPELL_COUNT = {"drink": 2, "buff": 1, "cone": 1, "cloud": 1, "venom": 3}
+# Engineering: a bomb; a stock spell (none of ours); the Loot-A-Rang's dummy; the Critter Carrier's
+# summon; a satchel's proc aura and the bomb it throws.
+USE_SPELL_COUNT = {"drink": 2, "buff": 1, "cone": 1, "cloud": 1, "venom": 3, "bomb": 1, "stock": 0, "lootarang": 1,
+                   "carrier": 1, "satchel": 2}
 # Icons the client already has an icon-only ItemDisplayInfo row for. Any other icon gets a new row
 # (a copy of ICON_DISPLAY_TEMPLATE, a drink: its pickup sound suits drinks and potions, pick another
 # template for professions whose products aren't liquids). The smoothies' recoloured drinks are in
@@ -293,7 +298,13 @@ USED_UP = -1                           # spellcharges: the item goes when used, 
 # Stored once given, like the rank: a recipe someone bought never changes what it needs.
 ID_COLUMNS = ["rank", "craft", "use_spells", "alliance_item", "recipe_display", "product_display"]
 INT_COLUMNS = ("skill", "recipe", "favor", "learn", "yellow", "grey", "product", "made", "product_class",
-               "product_subclass", "item_level", "required_level", "stack", "sell")
+               "product_subclass", "item_level", "required_level", "stack", "sell", "product_quality")
+
+
+def display_key(r, col):
+    """What a display row stands for: an icon, or for a product with Forever's look, its icon on that look."""
+    icon = r[col + "_icon"]
+    return icon + "|" + r["look"] if col == "product" and r.get("look") else icon
 
 
 def _ints(text):
@@ -329,7 +340,7 @@ def assign_ids(rows):
         for r in group:
             for col in ("recipe", "product"):
                 if r.get(col + "_display"):
-                    icons[r[col + "_icon"]] = int(r[col + "_display"])
+                    icons[display_key(r, col)] = int(r[col + "_display"])
 
         def next_free(used):
             n = max([x for x in used if base <= x < base + size] or [base - 1]) + 1
@@ -353,10 +364,10 @@ def assign_ids(rows):
             r.setdefault("alliance_item", 0)
             r["alliance_item"] = r["alliance_item"] or 0
             for col in ("recipe", "product"):
-                icon = r[col + "_icon"]
-                if icon not in icons:
-                    icons[icon] = ICON_DISPLAYS.get(icon) or next_free(set(icons.values()))
-                r[col + "_display"] = icons[icon]
+                key = display_key(r, col)
+                if key not in icons:
+                    icons[key] = ICON_DISPLAYS.get(key) or next_free(set(icons.values()))
+                r[col + "_display"] = icons[key]
     return rows
 
 
@@ -370,6 +381,8 @@ def recipes():
             r[k] = int(r[k])
         r["use_spells"] = _ints(r["use_spells"])
         r["use"] = r["use"].split() if r["use"] else []
+        r["gear"] = dict(kv.split("=", 1) for kv in r.get("gear", "").split()) if r.get("gear") else {}
+        r["look"] = r.get("look", "")
         r["reagents"] = [tuple(int(x) for x in part.split(":")) for part in r["reagents"].split(",")]
         if len(r["reagents"]) > 8:
             raise ValueError("recipe %d has more than 8 reagents" % r["recipe"])
@@ -404,14 +417,14 @@ def recipes():
                     raise ValueError("item %d is given twice" % r["alliance_item"])
                 seen_items.add(r["alliance_item"])
             for col in ("recipe", "product"):
-                icon, display = r[col + "_icon"], r[col + "_display"]
-                if icon in ICON_DISPLAYS:
-                    if display != ICON_DISPLAYS[icon]:
-                        raise ValueError("recipe %d: icon %s isn't display %d" % (r["recipe"], icon, display))
+                key, display = display_key(r, col), r[col + "_display"]
+                if key in ICON_DISPLAYS:
+                    if display != ICON_DISPLAYS[key]:
+                        raise ValueError("recipe %d: icon %s isn't display %d" % (r["recipe"], key, display))
                 else:
                     ours(display, "display", r)
-                if icon_of.setdefault(display, icon) != icon:
-                    raise ValueError("display %d has two icons" % display)
+                if icon_of.setdefault(display, key) != key:
+                    raise ValueError("display %d has two looks" % display)
     return rows
 
 
@@ -419,9 +432,12 @@ def new_displays():
     """(display id, icon, template display) for the ItemDisplayInfo rows the recipes and materials add."""
     seen = {}
     for r in recipes():
-        for icon, display in ((r["recipe_icon"], r["recipe_display"]), (r["product_icon"], r["product_display"])):
-            if icon not in ICON_DISPLAYS:
-                seen[display] = (icon, ICON_DISPLAY_TEMPLATE)
+        for col in ("recipe", "product"):
+            icon, display = r[col + "_icon"], r[col + "_display"]
+            if display_key(r, col) in ICON_DISPLAYS:
+                continue
+            # A product with Forever's look copies that look (build_patch finds the client's row for it).
+            seen[display] = (icon, ("look", r["look"]) if col == "product" and r["look"] else ICON_DISPLAY_TEMPLATE)
     for m in materials():
         seen[m["display"]] = (m["icon"], MATERIAL_DISPLAY_TEMPLATE[m["cls"], m["subclass"]])
     return sorted((d, icon, template) for d, (icon, template) in seen.items())
@@ -489,14 +505,73 @@ def elixir_group(r):
 
 
 def product_kind(r):
-    """drink, elixir or potion: what the product's cooldown and stacking follow."""
+    """drink, elixir or potion: what the product's cooldown and stacking follow; Engineering's own kinds
+    (bomb, stock, lootarang, carrier, satchel) set theirs in engineering_use."""
     if not r["use"]:
         return None
+    if r["use"][0] in ENGINEERING_KINDS:
+        return r["use"][0]
     if r["use"][0] == "drink":
         return "drink"
     if r["use"][0] == "buff" and r["use"][1] == "elixir":
         return "elixir"
     return "potion"
+
+
+ENGINEERING_KINDS = ("bomb", "stock", "lootarang", "carrier", "satchel")
+# The Compact Critter Carrier's stable: a crate (the client's stock crate creature) with the stable master's
+# flag; gossip menu 0's default option lists the stables for hunters.
+CARRIER, CARRIER_DISPLAY = 9531110, 20366
+THROWN = (2, 16)
+THROWN_DURABILITY, THROWN_RANGE_MOD = 200, 100     # the stock thrown weapons' (Balanced Throwing Dagger)
+EXPLOSIVE_CATEGORY = (24, 60000)         # the stock bombs' and grenades' shared cooldown
+ON_EQUIP = 1                             # spelltrigger
+LOOTARANG_SCRIPT = "item_supply_lootarang"
+
+
+def engineering_use(r):
+    """The item fields an Engineering product's use sets."""
+    kind = r["use"][0] if r["use"] else None
+    if kind == "bomb":
+        return dict(spell=r["use_spells"][0], category=EXPLOSIVE_CATEGORY[0], category_cooldown=EXPLOSIVE_CATEGORY[1],
+                    charges=USED_UP)
+    if kind == "stock":
+        # The client's own spell. Forever's charges are uses: the item goes with the last one.
+        _k, spell, charges, cooldown = r["use"]
+        return dict(spell=int(spell), charges=-int(charges) if int(charges) > 0 else 0, cooldown=int(cooldown) or -1)
+    if kind == "lootarang":
+        return dict(spell=r["use_spells"][0], cooldown=int(r["use"][2]), script=LOOTARANG_SCRIPT)
+    if kind == "carrier":
+        return dict(spell=r["use_spells"][0], charges=USED_UP)
+    if kind == "satchel":
+        return dict(spell=r["use_spells"][0], trigger=ON_EQUIP)
+    return {}
+
+
+def gear_fields(gear):
+    """item_template fields from a product's gear column (Forever's tables and Wowhead's tooltip)."""
+    out = {}
+    if "inv" in gear:
+        out["inv_type"] = int(gear["inv"])
+    for key, field in (("armor", "armor"), ("delay", "delay"), ("dur", "durability"), ("sheath", "sheath"),
+                       ("material", "material"), ("bond", "bonding"), ("maxcount", "maxcount"), ("totem", "totem")):
+        if key in gear:
+            out[field] = int(gear[key])
+    if "dmg" in gear:
+        out["dmg"] = tuple(int(x) for x in gear["dmg"].split("-"))
+    if "stats" in gear:
+        out["stats"] = [tuple(int(x) for x in st.split(":")) for st in gear["stats"].split(",")]
+    if "skill" in gear:
+        skill, rank = gear["skill"].split(":")
+        out["skill"], out["skill_rank"] = int(skill), int(rank)
+    return out
+
+
+def finish_gear(row):
+    """Thrown weapons: the stock range modifier, and durability when Wowhead's tooltip left it out."""
+    if (row["cls"], row["subclass"]) == THROWN:
+        row["ranged_mod"] = THROWN_RANGE_MOD
+        row["durability"] = row["durability"] or THROWN_DURABILITY
 
 
 def spell_groups():
@@ -534,10 +609,12 @@ def no_bonus_spells():
     out = []
     for r in recipes():
         kind = r["use"][0] if r["use"] else None
-        if kind in ("cone", "cloud"):
+        if kind in ("cone", "cloud", "bomb"):
             out.append(r["use_spells"][0])
         elif kind == "venom":
             out.append(r["use_spells"][2])
+        elif kind == "satchel":
+            out.append(r["use_spells"][1])
     return sorted(out)
 
 
@@ -597,7 +674,8 @@ def items():
                    stackable=1, bonding=0, description="", spell=0, trigger=0, spell2=0, trigger2=0,
                    level=0, skill=0, skill_rank=0, rep_faction=0, rep_rank=0, startquest=0, script="",
                    bag_family=0, flags=0, maxcount=0, material=-1, sell=0, buy=0, inv_type=0, item_level=0, category=0,
-                   category_cooldown=-1, charges=0)
+                   category_cooldown=-1, charges=0, cooldown=-1, armor=0, stats=[], dmg=(0, 0), dmg_type=0, delay=0,
+                   durability=0, sheath=0, totem=0, ranged_mod=0)
         row.update(kw)
         out.append(row)
 
@@ -697,12 +775,15 @@ def items():
         products.add(r["product"])
         product = dict(level=r["required_level"], item_level=r["item_level"], stackable=r["stack"], sell=r["sell"])
         kind = product_kind(r)
-        if kind:
+        if kind in ITEM_CATEGORY:
             category, cooldown = ITEM_CATEGORY[kind]
             product.update(spell=r["use_spells"][0], category=category, category_cooldown=cooldown,
                            material=7 if kind == "drink" else 3, charges=USED_UP)
-        add(r["product"], r["product_name"], r["product_class"], r["product_subclass"], r["product_display"], 1,
+        product.update(engineering_use(r))
+        product.update(gear_fields(r["gear"]))
+        add(r["product"], r["product_name"], r["product_class"], r["product_subclass"], r["product_display"], r["product_quality"],
             **product)
+        finish_gear(out[-1])
     # Scarce materials and what's made from them: trade goods, as Forever's.
     for m in materials():
         add(m["item"], m["name"], m["cls"], m["subclass"], m["display"], m["quality"], stackable=m["stack"],

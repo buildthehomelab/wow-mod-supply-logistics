@@ -7,6 +7,7 @@
 #include "SupplyLogistics.h"
 
 #include "CellImpl.h"
+#include "Chat.h"
 #include "Creature.h"
 #include "DBCStores.h"
 #include "GridNotifiers.h"
@@ -176,6 +177,69 @@ namespace
         }
     };
 
+    // The Loot-A-Rang (Forever's Engineering recipe): loots the nearest corpse you may loot within its
+    // spell's range, as if you stood over it (the core's loot window checks distance, so the items go
+    // straight to the bags, by the same rules: rolls, quest items and master loot still apply). Then the
+    // spell is cast, for its cooldown. Nothing in range: no cast.
+    class SupplyLootarangItem : public ItemScript
+    {
+    public:
+        SupplyLootarangItem() : ItemScript("item_supply_lootarang") { }
+
+        bool OnUse(Player* player, Item* item, SpellCastTargets const& /*targets*/) override
+        {
+            SpellInfo const* spell = sSpellMgr->GetSpellInfo(item->GetTemplate()->Spells[0].SpellId);
+            float range = spell ? spell->GetMaxRange() : 40.0f;
+            std::list<Creature*> dead;
+            player->GetDeadCreatureListInGrid(dead, range);
+            Creature* corpse = nullptr;
+            float best = range;
+            for (Creature* creature : dead)
+            {
+                if (!creature->HasDynamicFlag(UNIT_DYNFLAG_LOOTABLE) || creature->loot.empty()
+                    || !player->isAllowedToLoot(creature) || !player->IsWithinLOSInMap(creature))
+                    continue;
+                float distance = player->GetDistance(creature);
+                if (distance <= best)
+                {
+                    best = distance;
+                    corpse = creature;
+                }
+            }
+            if (!corpse)
+            {
+                ReleaseItem(player, item);
+                ChatHandler(player->GetSession()).SendNotification("There is nothing to loot within {} yards.", uint32(range));
+                return true;
+            }
+
+            Loot& loot = corpse->loot;
+            for (uint32 slot = 0, slots = loot.GetMaxSlotInLootFor(player); slot < slots; ++slot)
+            {
+                InventoryResult msg;
+                player->StoreLootItem(uint8(slot), &loot, msg);
+                if (msg != EQUIP_ERR_OK)
+                {
+                    player->SendEquipError(msg, nullptr, nullptr);
+                    break;
+                }
+            }
+            if (loot.gold)
+            {
+                player->ModifyMoney(loot.gold);
+                player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_MONEY, loot.gold);
+                loot.gold = 0;
+                loot.NotifyMoneyRemoved();
+            }
+            if (loot.isLooted())
+            {
+                corpse->RemoveDynamicFlag(UNIT_DYNFLAG_LOOTABLE);
+                corpse->AllLootRemovedFromCorpse();
+            }
+            return false;
+        }
+    };
+
     class SupplyLogisticsWorldScript : public WorldScript
     {
     public:
@@ -316,6 +380,7 @@ void AddSupplyLogisticsScripts()
     new SupplyLogisticsPlayerScript();
     new SupplyLogisticsCreatureScript();
     new SupplyLogisticsWorldScript();
+    new SupplyLootarangItem();
     AddSupplyLogisticsSignScripts();
     new SupplyLogisticsMiscScript();
 }

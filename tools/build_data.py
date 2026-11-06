@@ -11,7 +11,7 @@ Released under the MIT License.
 
 import os
 
-from catalog import (CHEF_RECIPES, SKILL_COOKING, PROC_FLAG_TAKEN_PERIODIC, PROC_SPELL_TYPE_DAMAGE,
+from catalog import (CARRIER, CARRIER_DISPLAY, CHEF_RECIPES, SKILL_COOKING, PROC_FLAG_TAKEN_PERIODIC, PROC_SPELL_TYPE_DAMAGE,
                      cone_degrees, material_crafts, no_bonus_spells, proc_spells, scarce_sources, script_names,
                      spell_groups, recipe_vendor_items, recipes, COMPLETED_FORMS, FORMS, LICENSE_QUESTS, LICENSES, LOOK, ORC_SIGN_LOOKS, DWARF_BOARD_LOOKS, PACK_KODO,
                      SIGNPOSTS, SIGNPOST_TOYS, SIGNS, SPELL_SIGNPOSTS, SPELL_SIGN_FORM, TABARDS, TEXT_SIGNPOST, TEXT_SIGNPOST_NONE,
@@ -23,6 +23,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "sq
                    "mod_supply_logistics_world.sql")
 UNINSTALL = os.path.normpath(os.path.join(os.path.dirname(OUT), "..", "uninstall", "mod_supply_logistics_uninstall_world.sql"))
 REPEATABLE = 1                # quest_template_addon.SpecialFlags
+STABLE_MASTER = 0x00400000    # npcflag
 RETIRED_QUESTS = [quest for quest, _item in RETIRED_WRITS]
 RETIRED_ITEMS = [item for _quest, item in RETIRED_WRITS]
 GOSSIP = 1                    # npcflag
@@ -128,7 +129,8 @@ def main():
             "RequiredReputationRank", "maxcount", "stackable", "spellid_1", "spelltrigger_1", "spellcharges_1",
             "spellcooldown_1", "spellcategory_1", "spellcategorycooldown_1", "spellid_2", "spelltrigger_2", "spellcooldown_2",
             "spellcategorycooldown_2", "bonding", "description", "startquest", "Material", "BagFamily",
-            "ScriptName", "VerifiedBuild"]
+            "ScriptName", "armor", "stat_type1", "stat_value1", "stat_type2", "stat_value2", "dmg_min1", "dmg_max1",
+            "dmg_type1", "delay", "RangedModRange", "MaxDurability", "sheath", "TotemCategory", "VerifiedBuild"]
     w("INSERT INTO `item_template` (%s) VALUES" % ", ".join("`%s`" % c for c in cols))
     lines = []
     for i in all_items:
@@ -140,11 +142,16 @@ def main():
             "ItemLevel": max(1, i["item_level"] or i["level"]), "RequiredLevel": i["level"], "RequiredSkill": i["skill"],
             "RequiredSkillRank": i["skill_rank"], "RequiredReputationFaction": i["rep_faction"],
             "RequiredReputationRank": i["rep_rank"], "maxcount": i["maxcount"], "stackable": i["stackable"],
-            "spellid_1": i["spell"], "spelltrigger_1": i["trigger"], "spellcharges_1": i["charges"], "spellcooldown_1": -1,
+            "spellid_1": i["spell"], "spelltrigger_1": i["trigger"], "spellcharges_1": i["charges"], "spellcooldown_1": i["cooldown"],
             "spellcategory_1": i["category"], "spellcategorycooldown_1": i["category_cooldown"], "spellid_2": i["spell2"], "spelltrigger_2": i["trigger2"],
             "spellcooldown_2": -1, "spellcategorycooldown_2": -1, "bonding": i["bonding"],
             "description": q(i["description"]), "startquest": i["startquest"], "Material": i["material"],
             "BagFamily": i["bag_family"], "ScriptName": q(i["script"]), "VerifiedBuild": 0,
+            "armor": i["armor"], "dmg_min1": i["dmg"][0], "dmg_max1": i["dmg"][1], "dmg_type1": i["dmg_type"],
+            "delay": i["delay"], "RangedModRange": i["ranged_mod"], "MaxDurability": i["durability"], "sheath": i["sheath"],
+            "TotemCategory": i["totem"],
+            **{"stat_type%d" % (n + 1): (i["stats"][n][0] if n < len(i["stats"]) else 0) for n in range(2)},
+            **{"stat_value%d" % (n + 1): (i["stats"][n][1] if n < len(i["stats"]) else 0) for n in range(2)},
         }
         lines.append("(" + ", ".join(str(row[c]) for c in cols) + ")")
     w(",\n".join(lines) + ";")
@@ -167,6 +174,9 @@ def main():
         creature_rows.append((orcish, name, "", 35, 0, SIGN_FLAGS, 10, 2, 0, "", ORC_SIGN_LOOKS + i, 1))
         creature_rows.append((dwarven, name, "", 35, 0, SIGN_FLAGS, 10, 2, 0, "", LOOK["dwarf_post"], 1))
         creature_rows.append((board, name, "", 35, 0, SIGN_FLAGS, 10, 2, 0, "", DWARF_BOARD_LOOKS + i, 1))
+    # The Compact Critter Carrier: a crate that is a stable master (gossip menu 0's stable option, hunters only).
+    creature_rows.append((CARRIER, "Compact Critter Carrier", "", 35, GOSSIP | STABLE_MASTER, 768 | 2, 9, 2, 0, "",
+                          CARRIER_DISPLAY, 1))
     creature_ids = [r[0] for r in creature_rows]
     still = [r[0] for r in creature_rows if r[0] not in (MINIMULE, MULE_MOUNT, PACK_KODO, *SIGNPOSTS)]
     w("-- The Minimule (Packmule Treat's companion), the Pack Mule and Pack Kodo mounts' looks, and the signpost toys'")

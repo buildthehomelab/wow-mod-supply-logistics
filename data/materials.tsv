@@ -12,3 +12,4 @@ item	name	cls	subclass	quality	item_level	stack	sell	material	icon	description	k
 249431	Viridian Dye	7	11	2	60	20	375	3	inv_inscription_inkgreen01	Crafted by alchemists.	craft			171	215	10000	230	270	249274:2,8925:1	91952	91960
 249410	Sulfuric Acid	7	11	2	25	20	125	3	trade_alchemy	Crafted by alchemists.	craft			171	40	150	50	90	249391:2,3371:1	91953	91961
 249432	Sandpaper	7	1	2	45	20	250	3	inv_inscription_papyrus	Crafted by engineers.	craft			202	120	500	130	155	249425:2,2996:1	91954	91962
+260804	SAF-T Casing	7	1	1	43	20	1000	4	inv_gizmo_mithrilcasing_02	Extra padding for SAF-T!	craft			202	215	0	215	220	10561:1,4234:1	91955	91963

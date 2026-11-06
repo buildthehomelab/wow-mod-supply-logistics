@@ -29,6 +29,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from catalog import ID_COLUMNS, assign_ids  # noqa: E402
+import fetch_forever  # noqa: E402  (its Wowhead tooltip cache)
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 OUT = os.path.join(DATA, "recipes.tsv")
@@ -45,10 +46,19 @@ PROC_TAKEN_PERIODIC = 0x80000
 BUFF_AURAS = {13: 13, 22: 22, 29: 29, 34: 34, 85: 85, 99: 99, 124: 124, 135: 135, 161: 161, 180: 180, 290: 290,
               674: 22}
 ITEM_SUBCLASS_POTION, ITEM_SUBCLASS_ELIXIR = 1, 2
+EFFECT_DUMMY, EFFECT_SUMMON, AURA_PROC_TRIGGER_SPELL, AURA_MOD_STUN = 3, 28, 42, 12
+TARGET_DEST_AREA_ENEMY, TARGET_DEST_DEST, TARGET_DEST_CASTER = 16, 87, 18
+TRIGGER_ON_EQUIP = 1
+STOCK_SPELL_MAX = 80864                  # the 3.3.5a client's last spell: Forever reuses some as they are
+# Recipes whose reagents come from Forever's Mount Hyjal (Heavy Thorium, Torbernite, Fel Crystal, Legionite,
+# Azerothium, Pitchblende, Death Lotus, Marefoil): they wait for that zone (user 2026-11-06).
+WAIT_FOR_HYJAL = {264232, 264234, 264235, 264237}
+STAT_IDS = {"Agility": 3, "Strength": 4, "Intellect": 5, "Spirit": 6, "Stamina": 7}
+GEAR_CLASSES = {2, 4}                    # weapons and armor: their tooltip numbers go in the gear column
 TRIGGER_LEARN = 6
 COLUMNS = ["skill", "recipe", "name", "favor", "sides", "learn", "yellow", "grey", "product", "product_name",
            "made", "reagents", "recipe_icon", "product_icon", "product_class", "product_subclass", "item_level",
-           "required_level", "stack", "sell", "use", "use_text", "use_aura_text"] + ID_COLUMNS
+           "required_level", "stack", "sell", "use", "use_text", "use_aura_text", "gear", "look", "product_quality"] + ID_COLUMNS
 
 
 def table(folder, name, key="ID", multi=False):
@@ -102,6 +112,7 @@ def main():
     ap.add_argument("--sells", required=True, help="the camp NPCs' Wowhead sells lists")
     ap.add_argument("--listfile", required=True, help="community-listfile.csv")
     ap.add_argument("--skill", type=int, required=True, help="SkillLine id, e.g. 185 Cooking")
+    ap.add_argument("--cache", help="folder for Wowhead tooltips (gear's armor, damage and stats; needed for gear)")
     args = ap.parse_args()
 
     sparse, item = table(args.wago, "ItemSparse"), table(args.wago, "Item")
@@ -118,6 +129,82 @@ def main():
              for k, v in table(args.wago, "SpellTargetRestrictions", "SpellID", multi=True).items()}
     durations, radii = table(args.wago, "SpellDuration"), table(args.wago, "SpellRadius")
     ranges, aura_options = table(args.wago, "SpellRange"), table(args.wago, "SpellAuraOptions", "SpellID", multi=True)
+    appearance_of = table(args.wago, "ItemModifiedAppearance", "ItemID", multi=True)
+    appearances, displays = table(args.wago, "ItemAppearance"), table(args.wago, "ItemDisplayInfo")
+    model_files = table(args.wago, "ModelFileData", "ModelResourcesID", multi=True)
+    texture_files = table(args.wago, "TextureFileData", "MaterialResourcesID", multi=True)
+    listfile = {}
+    with open(args.listfile, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            fid, _, name = line.rstrip("\n").partition(";")
+            if fid.isdigit():
+                listfile[int(fid)] = name
+
+    def spell_reach(spell):
+        return int(float(ranges[int(misc[spell][0]["RangeIndex"])]["RangeMax_0"]))
+
+    def tooltip_text(entry):
+        if not args.cache:
+            sys.exit("item %d needs its Wowhead tooltip: pass --cache" % entry)
+        os.makedirs(args.cache, exist_ok=True)
+        _name, text = fetch_forever.tooltip(entry, args.cache)
+        return text
+
+    def appearance(entry):
+        """(Forever's display id, its icon file id) from the item's default appearance."""
+        rows_ = sorted(appearance_of.get(entry, []), key=lambda r: int(r.get("OrderIndex") or 0))
+        if not rows_:
+            return 0, 0
+        a = appearances.get(int(rows_[0]["ItemAppearanceID"]), {})
+        return int(a.get("ItemDisplayInfoID") or 0), int(a.get("DefaultIconFileDataID") or 0)
+
+    def look(entry):
+        """Forever's look: its display id, model and texture names (the client's display with the same
+        model and texture stands in when the id is Forever's own)."""
+        display, _icon = appearance(entry)
+        if not display:
+            return ""
+        d = displays[display]
+        model = texture = ""
+        res = int(d.get("ModelResourcesID_0") or 0)
+        if res and res in model_files:
+            name = os.path.basename(listfile.get(int(model_files[res][0]["FileDataID"]), ""))
+            model = re.sub(r"_(..[mf]|.._[mf])\.m2$", "", name, flags=re.I).replace(".m2", "") + ".mdx" if name else ""
+        mat = int(d.get("ModelMaterialResourcesID_0") or 0)
+        if mat and mat in texture_files:
+            texture = os.path.splitext(os.path.basename(listfile.get(int(texture_files[mat][0]["FileDataID"]), "")))[0]
+        return "%d|%s|%s" % (display, model, texture)
+
+    def gear(entry):
+        """What a weapon's or armor's row needs beyond the tables: Wowhead's tooltip numbers."""
+        p, i = sparse[entry], item[entry]
+        parts = []
+        if int(i["ClassID"]) in GEAR_CLASSES:
+            t = tooltip_text(entry)
+            m = re.search(r"(\d+) Armor", t)
+            if m:
+                parts.append("armor=%s" % m.group(1))
+            m = re.search(r"(\d+) - (\d+) Damage", t)
+            if m:
+                parts.append("dmg=%s-%s" % m.groups())
+            m = re.search(r"Speed (\d+\.\d+)", t)
+            if m:
+                parts.append("delay=%d" % round(float(m.group(1)) * 1000))
+            stats = ["%d:%s" % (STAT_IDS[s_], v) for v, s_ in re.findall(r"\+(\d+) (Stamina|Strength|Agility|Intellect|Spirit)", t)]
+            if stats:
+                parts.append("stats=" + ",".join(stats))
+            m = re.search(r"Durability \d+ / (\d+)", t)
+            if m:
+                parts.append("dur=%s" % m.group(1))
+            parts += ["inv=%s" % i["InventoryType"], "sheath=%s" % i["SheatheType"], "material=%s" % i["Material"]]
+        for key, col in (("bond", "Bonding"), ("maxcount", "MaxCount"), ("totem", "TotemCategoryID")):
+            if int(p[col] or 0):
+                parts.append("%s=%s" % (key, p[col]))
+        if int(p["RequiredSkill"] or 0):
+            # Retail's per-expansion skill lines (2941 is Classic Engineering) are the profession here.
+            skill = int(p["RequiredSkill"]) if int(p["RequiredSkill"]) < 1000 else args.skill
+            parts.append("skill=%d:%s" % (skill, p["RequiredSkillRank"]))
+        return " ".join(parts)
 
     def duration(spell):
         return int(durations[int(misc[spell][0]["DurationIndex"])]["Duration"])
@@ -208,6 +295,31 @@ def main():
                                                  int(tick["EffectAuraPeriod"]), reach)
         # Venomous Blood: doses on you; each bleed tick you take spreads one to an enemy near you, where
         # it does its damage when it runs out.
+        # A satchel: worn, its thrown attacks throw a bomb at the target too.
+        if int(uses[0]["TriggerType"]) == TRIGGER_ON_EQUIP:
+            if kinds != [(EFFECT_APPLY_AURA, AURA_PROC_TRIGGER_SPELL, TARGET_UNIT_CASTER)]:
+                sys.exit("item %d: its equip spell isn't a proc" % product)
+            bomb = int(effs[0]["EffectTriggerSpell"])
+            m = re.search(r"causing (\d+) to (\d+) (\w+) damage", tooltip_text(product))
+            if not m:
+                sys.exit("item %d: no bomb damage in its tooltip" % product)
+            mask = int(aura_options.get(spell, [{}])[0].get("ProcTypeMask_0") or 0)
+            return "satchel %d %d %d %s %s" % (mask, radius(spell_effects(bomb)[0]), school(bomb), m.group(1), m.group(2))
+        # A stock spell the client has as it is (Cloaking, Slow Fall, Longsight), with Forever's charges and cooldown.
+        if spell <= STOCK_SPELL_MAX:
+            return "stock %d %s %s" % (spell, uses[0]["Charges"], uses[0]["CoolDownMSec"])
+        # A bomb: Fire damage where it's thrown, maybe a short stun.
+        if kinds and kinds[0] == (EFFECT_SCHOOL_DAMAGE, 0, TARGET_DEST_AREA_ENEMY) and len(kinds) <= 2:
+            stun = duration(spell) if kinds[1:] == [(EFFECT_APPLY_AURA, AURA_MOD_STUN, TARGET_DEST_AREA_ENEMY)] else 0
+            if len(kinds) == 2 and not stun:
+                sys.exit("item %d: a bomb's second effect isn't a stun" % product)
+            return "bomb %d %d %d %d %d" % (radius(effs[0]), school(spell), amount(effs[0]), stun, spell_reach(spell))
+        # The Loot-A-Rang: the module's C++ loots a corpse within range.
+        if kinds == [(EFFECT_DUMMY, 0, TARGET_DEST_CASTER)]:
+            return "lootarang %d %s" % (spell_reach(spell), uses[0]["CoolDownMSec"])
+        # The Compact Critter Carrier: a stable for hunters, set on the ground for a while.
+        if kinds == [(EFFECT_SUMMON, 0, TARGET_DEST_DEST)]:
+            return "carrier %d %d" % (duration(spell), spell_reach(spell))
         options = aura_options.get(spell, [{}])[0]
         if kinds == [(EFFECT_APPLY_AURA, AURA_DUMMY, TARGET_UNIT_CASTER)] * 2 \
                 and int(options.get("ProcTypeMask_0") or 0) == PROC_TAKEN_PERIODIC:
@@ -217,7 +329,7 @@ def main():
     rows = []
     for recipe, (favor, sides) in sorted(sold(args.sells).items()):
         rs = sparse[recipe]
-        if int(rs["RequiredSkill"]) != args.skill:
+        if int(rs["RequiredSkill"]) != args.skill or recipe in WAIT_FOR_HYJAL:
             continue
         taught = [int(e["SpellID"]) for e in item_spells(recipe) if int(e["TriggerType"]) == TRIGGER_LEARN]
         if len(taught) != 1:
@@ -226,13 +338,16 @@ def main():
         made = [e for e in spell_effects(craft) if int(e["Effect"]) == EFFECT_CREATE_ITEM]
         if len(made) != 1:
             sys.exit("spell %d makes %d items" % (craft, len(made)))
-        product, count = int(made[0]["EffectItemType"]), int(float(made[0]["EffectBasePointsF"]))
+        # Some of Forever's crafts store 0 for "one".
+        product, count = int(made[0]["EffectItemType"]), max(1, int(float(made[0]["EffectBasePointsF"])))
         ability = [a for a in abilities.get(craft, []) if int(a["SkillLine"]) == args.skill]
         if len(ability) != 1:
             sys.exit("spell %d has %d SkillLineAbility rows" % (craft, len(ability)))
         r = reagents[craft]
         parts = ["%s:%s" % (r["Reagent_%d" % i], r["ReagentCount_%d" % i]) for i in range(8) if int(r["Reagent_%d" % i])]
         ps = sparse[product]
+        if not int(item[product]["IconFileDataID"]):          # gear: the icon is the appearance's
+            item[product]["IconFileDataID"] = appearance(product)[1]
         use = describe_use(product)
         check_text(product, use.split(" ")[0], use_texts(product))
         rows.append({
@@ -246,9 +361,21 @@ def main():
             "required_level": ps["RequiredLevel"], "stack": ps["Stackable"], "sell": ps["SellPrice"],
             "use": use,
             "use_text": use_texts(product)[0], "use_aura_text": use_texts(product)[1],
+            "gear": gear(product), "look": look(product), "product_quality": ps["OverallQualityID"],
         })
     if not rows:
         sys.exit("no recipes for skill %d" % args.skill)
+    # Every reagent must be something this world has: a stock item, a Scarce material (data/materials.tsv)
+    # or what another recipe makes.
+    known = {int(r["product"]) for r in rows}
+    for path in (OUT, os.path.join(DATA, "materials.tsv")):
+        if os.path.exists(path):
+            with open(path, newline="", encoding="utf-8") as f:
+                known |= {int(r.get("product") or r.get("item")) for r in csv.DictReader(f, delimiter="\t")}
+    for r in rows:
+        missing = [x for x in r["reagents"].split(",") if int(x.split(":")[0]) > 56806 and int(x.split(":")[0]) not in known]
+        if missing:
+            sys.exit("recipe %d needs %s, which nothing here gives" % (r["recipe"], missing))
     names = icon_names(args.listfile, {r["recipe_icon"] for r in rows} | {r["product_icon"] for r in rows})
     for r in rows:
         r["recipe_icon"], r["product_icon"] = names[r["recipe_icon"]], names[r["product_icon"]]

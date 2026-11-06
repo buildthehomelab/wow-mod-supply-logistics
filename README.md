@@ -208,8 +208,33 @@ Fermenter camp object, which this world has none of, so here it needs nothing.
 **Not yet:** Forever's Mount Hyjal materials (Heavy Thorium, Torbernite, Fel Crystal, Legionite and
 Azerothium bars, Pitchblende, Death Lotus, Marefoil), which come from its new zone.
 
-**Not yet:** the other 282 recipes (Engineering, Enchanting, Blacksmithing, Tailoring and
-Leatherworking; the prices are already in the extended costs).
+**Engineering** (the engineer): 24 of Forever's 28 schematics. Four (Ultrasafe Rechargeable Battery,
+Gnomish Poultryizer, Ultralight Goblin Glider, Stealthman 52) need Mount Hyjal's materials and wait for
+that zone.
+
+| Schematic | Favor | Needs | Learn at | Makes |
+| --- | --- | --- | --- | --- |
+| SAF-T Tabs, EZ-Thro Wrap, No Slip SAF-T Padding | 45 | | 25-145 | Parts for other schematics (Scarce materials) |
+| SAF-T Dynamite, SAF-T Copper Bomb, EZ-Thro Copper Bomb XL | 45 | | 25-130 | Bombs: 30, 25 and 50 Fire damage; the last two stun for 1 sec |
+| Satchel of Copper Bombs | 45 | | 85 | Thrown weapon (+2 Stamina); thrown attacks explode for 1-11 Fire damage |
+| SAF-T Bell, EZ-Thro Fireproof Fuse | 180 | Friendly | 175-190 | Parts |
+| Whimsical Waistwrap, Gizmo Girdle, Clanking Cord | 180 | Friendly | 175 | Cloth, leather and mail belts (Engineering 175 to wear) |
+| Floppy, Bent, Stuckbutton and Dented Goggles | 180 | Friendly | 200 | Cloth, leather, mail and plate goggles with Longsight (Engineering 200) |
+| Satchel of Bronze Bombs | 180 | Friendly | 165 | As above, +4 Stamina, 2-19 Fire |
+| Emergency Field Cloak | 270 | Honored | 225 | Trinket: invisibility for 10 sec, 3 uses, 1 hour cooldown |
+| Compact Critter Carrier | 270 | Honored | 225 | Sets down a crate for 3 min where hunters can reach their stabled pets |
+| SAF-T Disposable Parachute | 270 | Honored | 250 | Cloak: slow fall, 3 uses, 30 min cooldown |
+| Gnomish Army Knife | 270 | Honored | 250 | Counts as the stock Gnomish Army Knife's tools |
+| Loot-A-Rang | 270 | Honored | 275 | Loots the nearest corpse within 40 yards (3 sec cooldown) |
+| Satchels of Iron and Dark Iron Bombs | 270 | Honored | 230, 285 | +6 and +8 Stamina, 3-30 and 4-37 Fire |
+
+The goggles and satchels look as in Forever, whose models are the client's own (the classic goggles
+with their glowing lenses, the classic dynamite). Wowhead shows the belts and goggles with armor only,
+so that's what they have; Forever may give them more once it's known. SAF-T Casing, which the cloak and
+parachute need, is taught free by Engineering trainers at 215, as Forever's trainers do.
+
+**Not yet:** the other 254 recipes (Enchanting, Blacksmithing, Tailoring and Leatherworking; the prices
+are already in the extended costs), and the four Mount Hyjal schematics.
 
 ## Install
 

@@ -53,6 +53,7 @@ TRAINER = {
     1249632: (171, 215, 10000, 230, 270),        # Viridian Dye
     1249633: (171, 40, 150, 50, 90),             # Sulfuric Acid
     1249634: (202, 120, 500, 130, 155),          # Sandpaper
+    1266917: (202, 215, 0, 215, 220),            # SAF-T Casing: Wowhead shows no cost; Forever's needs an anvil
 }
 COLUMNS = ["item", "name", "cls", "subclass", "quality", "item_level", "stack", "sell", "material", "icon",
            "description", "kind", "sources", "chance", "skill", "learn", "cost", "yellow", "grey", "reagents",

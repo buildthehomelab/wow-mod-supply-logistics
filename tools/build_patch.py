@@ -49,7 +49,7 @@ from dbcmpq import add_string, read_dbc, string_at, write_dbc  # noqa: E402
 from catalog import (BUFF_TEMPLATE, CLOUD_TEMPLATE, CONE_TEMPLATE, CRAFT_TEMPLATE, DRINK_ICON, DRINK_TEMPLATE,  # noqa: E402
                      ELIXIR_DURATION_MS, ICON_DISPLAYS, ITEM_CATEGORY, PROC_FLAG_TAKEN_PERIODIC,
                      RECIPE_BLOCKS, STAT_NAMES, WELL_FED_ICON, WELL_FED_TEMPLATE, buff_auras, elixir_group, new_displays,
-                     material_crafts, product_kind, recipes)
+                     material_crafts, product_kind, recipes, CARRIER)
 from catalog import (COMPLETED_FORMS, COSTS, CURRENCY_BIT, CURRENCY_CATEGORY, CURRENCY_ID, FACTIONS, FAVOR,  # noqa: E402
                      FORM_CAST_TIME, FORM_TEMPLATE, ITEM_DISPLAYS, MOUNT_SPELLS, PET_SPELLS, SIGNPOST_CAST_TIME,
                      SIGNPOST_COOLDOWN, SIGNPOST_DURATION, SIGNPOST_RADIUS, SIGNPOSTS, SKILL_COMPANIONS, SKILL_MOUNTS,
@@ -78,6 +78,7 @@ EFFECT_CREATE_ITEM, EFFECT_APPLY_AURA = 24, 6
 AURA_MOD_STAT, AURA_PERIODIC_TRIGGER_SPELL, AURA_MOD_POWER_REGEN, AURA_PERIODIC_DUMMY = 29, 23, 85, 226
 AURA_DUMMY, AURA_PERIODIC_DAMAGE, EFFECT_SCHOOL_DAMAGE, EFFECT_PERSISTENT_AREA_AURA = 4, 3, 2, 27
 TARGET_UNIT_TARGET_ENEMY, TARGET_CONE_ENEMY, TARGET_DEST_DEST, TARGET_DEST_DYNOBJ_ENEMY = 6, 24, 87, 28
+TARGET_DEST_AREA_ENEMY = 16
 RANGE_ANYWHERE, SCHOOL_NATURE = 13, 8
 SKILL_LEARNED_ON_SKILL_VALUE = 1
 DUMMY_TEMPLATE = 54710                      # MOLL-E: a plain instant spell to start from
@@ -360,7 +361,7 @@ def add_recipe_spells(r, by_id, icons, start, finish, looks):
     if craft[F_EFFECT] != EFFECT_CREATE_ITEM:
         sys.exit("craft template %d doesn't create an item" % CRAFT_TEMPLATE[r["skill"]])
     craft[F_ITEM_TYPE] = r["product"]
-    craft[F_DIE_SIDES], craft[F_BASE_POINTS] = 1, r["made"] - 1
+    craft[F_DIE_SIDES], craft[F_BASE_POINTS] = 1, max(1, r["made"]) - 1
     finish(craft, r["product_name"], "")
 
     if not r["use"]:
@@ -481,6 +482,84 @@ def add_alchemy_spells(r, by_id, start, finish, looks):
         hit[F_RANGE], hit[F_SCHOOL], hit[F_DURATION] = RANGE_ANYWHERE, SCHOOL_NATURE, 0
         hit[F_CAST_TIME], hit[F_ICON], hit[F_VISUAL] = CAST_INSTANT, looks.icon(icon, r["skill"]), 0
         return finish(hit, "Venomous Blood", "")
+    if kind == "stock":                      # the client's own spell: nothing to add
+        return None
+    if kind in ENGINEERING_SPELL_KINDS:
+        return add_engineering_spells(r, by_id, start, finish, looks)
+    sys.exit("recipe %d: no spells for %r" % (r["recipe"], kind))
+
+
+ENGINEERING_SPELL_KINDS = ("bomb", "lootarang", "carrier", "satchel")
+BOMB_TEMPLATE, CARRIER_TEMPLATE = 4068, 22700          # Iron Grenade, Field Repair Bot 74A
+AURA_MOD_STUN, AURA_PROC_TRIGGER_SPELL, ATTR0_PASSIVE = 12, 42, 0x40
+
+
+def bomb_row(start, spell_id, name, radius_yards, school, low, high, stun_ms, reach, looks, icon, skill):
+    """An Iron Grenade copy: Fire damage (low to high) where it lands, maybe a stun."""
+    row = start(spell_id, BOMB_TEMPLATE, name)
+    clear_effects(row)
+    radius = looks.radius(radius_yards)
+    set_effect(row, 0, EFFECT_SCHOOL_DAMAGE, TARGET_DEST_AREA_ENEMY, low, radius=radius)
+    row[F_DIE_SIDES] = high - low + 1                    # low to high, as the client shows it
+    row[F_BASE_POINTS] = (low - 1) & 0xFFFFFFFF
+    if stun_ms:
+        set_effect(row, 1, EFFECT_APPLY_AURA, TARGET_DEST_AREA_ENEMY, 1, aura=AURA_MOD_STUN, radius=radius)
+        row[F_DURATION] = looks.duration(stun_ms)
+    else:
+        row[F_DURATION] = 0
+    row[F_RANGE], row[F_SCHOOL] = looks.range(reach), school
+    row[F_ICON] = looks.icon(icon, skill)
+    row[F_CATEGORY], row[F_RECOVERY], row[F_CATEGORY_RECOVERY] = 0, 0, 0
+    for f in F_LEVELS:
+        row[f] = 0
+    return row
+
+
+def add_engineering_spells(r, by_id, start, finish, looks):
+    """Bombs, the Loot-A-Rang's dummy (the module's item script does the looting), the Critter Carrier's
+    summon (Field Repair Bot's, of our crate stable) and a satchel's proc with its bomb."""
+    kind, icon, name, skill = r["use"][0], r["product_icon"], r["product_name"], r["skill"]
+    spells = r["use_spells"]
+    if kind == "bomb":
+        radius, school, damage, stun, reach = (int(x) for x in r["use"][1:])
+        row = bomb_row(start, spells[0], name, radius, school, damage, damage, stun, reach, looks, icon, skill)
+        return finish(row, name, r["use_text"], r["use_aura_text"])
+    if kind == "lootarang":
+        reach = int(r["use"][1])
+        row = start(spells[0], DUMMY_TEMPLATE, name)
+        for f in range(F_ATTRIBUTES, F_ATTRIBUTES_LAST + 1):
+            row[f] = 0
+        clear_effects(row)
+        row[F_EFFECT], row[F_DIE_SIDES], row[F_TARGET_A] = EFFECT_DUMMY, 1, TARGET_UNIT_CASTER
+        row[F_CAST_TIME], row[F_RECOVERY], row[F_CATEGORY_RECOVERY], row[F_INTERRUPT] = CAST_INSTANT, 0, 0, 0
+        row[F_DURATION], row[F_RANGE], row[F_CATEGORY] = 0, looks.range(reach), 0
+        row[F_VISUAL], row[F_ICON], row[F_GCD_CATEGORY], row[F_GCD] = 0, looks.icon(icon, skill), 0, 0
+        return finish(row, name, r["use_text"], "")
+    if kind == "carrier":
+        ms, _reach = (int(x) for x in r["use"][1:])
+        row = start(spells[0], CARRIER_TEMPLATE, name)
+        if row[F_EFFECT] != EFFECT_SUMMON:
+            sys.exit("Spell.dbc %d isn't a summon" % CARRIER_TEMPLATE)
+        row[F_MISC] = CARRIER
+        row[F_DURATION], row[F_ICON] = looks.duration(ms), looks.icon(icon, skill)
+        return finish(row, name, r["use_text"], "")
+    if kind == "satchel":
+        mask, radius, school, low, high = (int(x) for x in r["use"][1:])
+        proc_id, bomb_id = spells
+        bomb_name = name.replace("Satchel of ", "").rstrip("s")
+        bomb = bomb_row(start, bomb_id, bomb_name, radius, school, low, high, 0, 50, looks, icon, skill)
+        finish(bomb, bomb_name, "")
+        row = start(proc_id, DUMMY_TEMPLATE, name)
+        for f in range(F_ATTRIBUTES, F_ATTRIBUTES_LAST + 1):
+            row[f] = 0
+        row[F_ATTRIBUTES] = ATTR0_PASSIVE                 # an on-equip aura
+        clear_effects(row)
+        set_effect(row, 0, EFFECT_APPLY_AURA, TARGET_UNIT_CASTER, 1, aura=AURA_PROC_TRIGGER_SPELL, trigger=bomb_id)
+        row[F_PROC_FLAGS], row[F_PROC_CHANCE] = mask, 100   # Forever's mask: done ranged auto attack, as ours
+        row[F_CAST_TIME], row[F_DURATION], row[F_RANGE], row[F_CATEGORY] = CAST_INSTANT, 0, RANGE_SELF, 0
+        row[F_VISUAL], row[F_ICON], row[F_GCD_CATEGORY], row[F_GCD] = 0, looks.icon(icon, skill), 0, 0
+        return finish(row, name, "Thrown attacks explode on impact, causing %d to %d Fire damage to nearby enemies."
+                      % (low, high), "")
     sys.exit("recipe %d: no spells for %r" % (r["recipe"], kind))
 
 
@@ -499,10 +578,27 @@ def add_displays(files, client):
         r = by_id.get(display)
         if not r or string_at(strings, r[DISPLAY_ICON]).lower() != icon:
             sys.exit("ItemDisplayInfo.dbc %d isn't the icon %s" % (display, icon))
-    for template_id in {t for _d, _i, t in new_displays()}:
+    def look_row(look):
+        """The client's row for Forever's look: the same id (Forever kept the old ones), else a row with the
+        same model and texture (Forever's own ids for old art), preferring one that has a pickup sound."""
+        display, model, texture = look.split("|")
+        if int(display) in by_id and not model:
+            return by_id[int(display)]
+        same = [r for r in rows if string_at(strings, r[1]).lower() == model.lower()
+                and string_at(strings, r[3]).lower() == texture.lower()]
+        if not same:
+            sys.exit("the client has no display with model %s and texture %s" % (model, texture))
+        return sorted(same, key=lambda r: (r[12] == 0, r[0]))[0]
+
+    templates = {}
+    for _d, _i, template_id in new_displays():
+        if isinstance(template_id, tuple):
+            templates[template_id] = look_row(template_id[1])
+            continue
         template = by_id.get(template_id)
         if not template or any(template[1:DISPLAY_ICON]):
             sys.exit("ItemDisplayInfo.dbc %d isn't an icon-only row" % template_id)
+        templates[template_id] = template
     blps = {"Interface\\Icons\\%s.blp" % icon for _d, icon, _t in new_displays()}
     lacking = {b for b in blps if b.lower() not in {f.lower() for f in files}}
     if client:
@@ -516,7 +612,7 @@ def add_displays(files, client):
         old = by_id.get(display)
         if old and string_at(strings, old[DISPLAY_ICON]).lower() != icon.lower():
             sys.exit("ItemDisplayInfo.dbc row %d is taken" % display)
-        row = list(by_id[template_id])
+        row = list(templates[template_id])
         row[0], row[DISPLAY_ICON] = display, add_string(strings, icon)
         put(rows, row)
         print("ItemDisplayInfo.dbc %d %s" % (display, icon))
