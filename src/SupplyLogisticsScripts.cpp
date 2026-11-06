@@ -113,7 +113,16 @@ namespace
             PLAYERHOOK_ON_PLAYER_COMPLETE_QUEST,
             PLAYERHOOK_ON_UPDATE_SKILL,
             PLAYERHOOK_ON_SET_SKILL,
+            PLAYERHOOK_ON_BEFORE_BUY_ITEM_FROM_VENDOR,
         }) { }
+
+        // item = 0 tells the core the purchase was handled (here: refused).
+        void OnPlayerBeforeBuyItemFromVendor(Player* player, ObjectGuid /*vendorguid*/, uint32 /*vendorslot*/, uint32& item,
+            uint8 /*count*/, uint8 /*bag*/, uint8 /*slot*/) override
+        {
+            if (RefuseCertificationBuy(player, item))
+                item = 0;
+        }
 
         void OnPlayerLogin(Player* player) override
         {

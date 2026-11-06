@@ -1712,19 +1712,7 @@ INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `Exte
 (256731, 6, 4536, 0, 0, 0, 0),
 (256731, 7, 10284, 0, 0, 0, 0),
 (256731, 8, 11291, 0, 0, 0, 0);
--- A Certification is sold only to those with 300 skill (source type 23, vendor item; condition 7,
--- skill): the vendor checks reputation but not skill.
+-- Certifications are shown to everyone, red below 300 skill (item RequiredSkill); the module refuses
+-- the purchase below 300, since the vendor checks reputation but not skill. Earlier versions hid them
+-- with source type 23 conditions: this DELETE clears those rows.
 DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` IN (248196, 248197, 248199, 248200, 248201, 248202, 256729, 256730, 256732, 256733, 256734, 256735);
-INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
-(23, 248196, 271621, 0, 0, 7, 0, 171, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 248197, 271622, 0, 0, 7, 0, 164, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 248199, 271624, 0, 0, 7, 0, 333, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 248200, 271625, 0, 0, 7, 0, 202, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 248201, 271626, 0, 0, 7, 0, 165, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 248202, 271627, 0, 0, 7, 0, 197, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 256729, 271621, 0, 0, 7, 0, 171, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 256730, 271622, 0, 0, 7, 0, 164, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 256732, 271624, 0, 0, 7, 0, 333, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 256733, 271625, 0, 0, 7, 0, 202, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 256734, 271626, 0, 0, 7, 0, 165, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 256735, 271627, 0, 0, 7, 0, 197, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill');

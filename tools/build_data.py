@@ -234,14 +234,10 @@ def main():
         lines.append("(%d, %d, %d, 0, 0, %d, 0)" % (vendor, slots[vendor], item, cost))
     w(",\n".join(lines) + ";")
     certs = [(PROFESSION_VENDORS[skill][side], item, skill) for _t, _b, item, skill, _x in TITLES for side in (0, 1)]
-    w("-- A Certification is sold only to those with 300 skill (source type 23, vendor item; condition 7,")
-    w("-- skill): the vendor checks reputation but not skill.")
+    w("-- Certifications are shown to everyone, red below 300 skill (item RequiredSkill); the module refuses")
+    w("-- the purchase below 300, since the vendor checks reputation but not skill. Earlier versions hid them")
+    w("-- with source type 23 conditions: this DELETE clears those rows.")
     w("DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` IN (%s);" % ids(v for v, _i, _s in certs))
-    w("INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, "
-      "`ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, "
-      "`NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES")
-    w(",\n".join("(23, %d, %d, 0, 0, 7, 0, %d, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill')" % c
-                  for c in sorted(certs)) + ";")
     w("")
 
     with open(OUT, "w", encoding="utf-8") as f:
