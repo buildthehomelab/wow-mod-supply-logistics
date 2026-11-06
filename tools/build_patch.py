@@ -12,9 +12,9 @@ patch when it has them, else from the client's own (--client, its newest enUS lo
 patch gains them. What gets added (ids in catalog.py):
 
 - Spell.dbc: the use spells of the crates, writs, receipt, quill and Certifications (dummies the
-  module's item scripts answer), the Pack Kodo mount (from Great Brown Kodo) and the Minimule companion
-  (from Mr. Wiggles). SkillLineAbility.dbc puts the last two on the Mounts and Companions lines, so they
-  show in the Companions window. The retired Pack Mule mount's rows are taken out. Also Sign Form (signs
+  module's item scripts answer), the Pack Kodo and Pack Mule mounts (from Great Brown Kodo and Swift
+  Brown Steed) and the Minimule companion (from Mr. Wiggles). SkillLineAbility.dbc puts the last three
+  on the Mounts and Companions lines, so they show in the Companions window. Also Sign Form (signs
   the Advertising License's forms: creates the completed ones) and the two signpost toys' spells
   (summon the post), which the server casts as they are.
 - SpellIcon.dbc: the icons of those three, which the client has no row for.
@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dbcmpq  # noqa: E402
 from dbcmpq import add_string, read_dbc, string_at, write_dbc  # noqa: E402
 from catalog import (COMPLETED_FORMS, COSTS, CURRENCY_BIT, CURRENCY_CATEGORY, CURRENCY_ID, FACTIONS, FAVOR,  # noqa: E402
-                     FORM_CAST_TIME, FORM_TEMPLATE, ITEM_DISPLAYS, MOUNT_SPELLS, PET_SPELLS, RETIRED_MULE_ITEM, RETIRED_MULE_SPELL, SIGNPOST_CAST_TIME,
+                     FORM_CAST_TIME, FORM_TEMPLATE, ITEM_DISPLAYS, MOUNT_SPELLS, PET_SPELLS, SIGNPOST_CAST_TIME,
                      SIGNPOST_COOLDOWN, SIGNPOST_DURATION, SIGNPOST_RADIUS, SIGNPOSTS, SKILL_COMPANIONS, SKILL_MOUNTS,
                      SPELL_ICONS, SPELL_SIGN_FORM, SPELL_SIGNPOSTS, SUMMON_WILD, TARGET_DEST_CASTER_FRONT, TITLES,
                      USE_SPELLS, items)
@@ -227,8 +227,6 @@ def add_spells(files):
                 sys.exit("SkillLineAbility.dbc row %d is taken" % spell_id)
             put(abilities, [spell_id, skill, spell_id, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])
             lines.append((spell_id, skill))
-    spells[:] = [r for r in spells if r[0] != RETIRED_MULE_SPELL]
-    abilities[:] = [r for r in abilities if not (r[0] == RETIRED_MULE_SPELL and r[2] == RETIRED_MULE_SPELL)]
     write_dbc(path, spells, strings, fields)
     write_dbc(abilities_path, abilities, ability_strings, ability_fields)
     return made, lines
@@ -244,7 +242,6 @@ def add_items(files):
     ours = items()
     for i in ours:
         put(rows, [i["entry"], i["cls"], i["subclass"], UNSET, i["material"] & 0xFFFFFFFF, i["display"], i["inv_type"], 0])
-    rows[:] = [r for r in rows if r[0] != RETIRED_MULE_ITEM]
     write_dbc(path, rows, strings, fields)
     print("Item.dbc: %d items" % len(ours))
 
@@ -379,9 +376,9 @@ def write_sql(path, spells, abilities, factions, titles, currency, costs):
         values = [spell_value(i, v) for i, v in enumerate(row)]
         values[F_NAME], values[F_DESCRIPTION] = sql_str(name), sql_str(description)
         lines.append("(" + ", ".join(values) + ")")
-    out.append("DELETE FROM `spell_dbc` WHERE `ID` IN (%s);" % ids([r[0] for r, _n, _d in spells] + [RETIRED_MULE_SPELL]))
+    out.append("DELETE FROM `spell_dbc` WHERE `ID` IN (%s);" % ids(r[0] for r, _n, _d in spells))
     out.append("INSERT INTO `spell_dbc` VALUES\n" + ",\n".join(lines) + ";")
-    out.append("DELETE FROM `skilllineability_dbc` WHERE `ID` IN (%s);" % ids([s for s, _k in abilities] + [RETIRED_MULE_SPELL]))
+    out.append("DELETE FROM `skilllineability_dbc` WHERE `ID` IN (%s);" % ids(s for s, _k in abilities))
     out.append("INSERT INTO `skilllineability_dbc` (`ID`, `SkillLine`, `Spell`, `RaceMask`, `ClassMask`, `ExcludeRace`, "
                "`ExcludeClass`, `MinSkillLineRank`, `SupercededBySpell`, `AcquireMethod`, `TrivialSkillLineRankHigh`, "
                "`TrivialSkillLineRankLow`, `CharacterPoints_1`, `CharacterPoints_2`) VALUES\n"

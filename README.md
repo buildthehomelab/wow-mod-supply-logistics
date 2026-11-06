@@ -79,6 +79,7 @@ server's reputation rates and racial bonuses like any quest reputation.
 | Supply Officer | Advertising License Application (see below) | 1,200 | Honored |
 | Supply Officer | Durotar Supply and Logistics Tabard (Horde), Azeroth Commerce Authority Tabard (Alliance) | 200 | Exalted |
 | Kodo Handler (Horde), Mule Handler (Alliance) | Reins of the Pack Kodo: a 100% ground mount | 6,000 | Journeyman Riding |
+| Kodo Handler (Horde) | Reins of the Pack Mule: a 100% ground mount | 6,000 | Journeyman Riding |
 | Uncertified Scribe | Forger's Quill | 15 | Honored |
 | Uncertified Scribe | Forged Delivery Receipt | 15 | |
 | Each profession vendor (red below 300 skill) | Its Certification: the title "the Alchemist", "the Blacksmith", "the Enchanter", "the Engineer", "the Leatherworker" or "the Tailor" | 1,000 | 300 skill |
@@ -88,8 +89,10 @@ it has 300 skill in the profession, racial bonuses included (checked at login an
 changes, so unlearning the profession takes it away). The chef sells
 Forever's cooking supplies for coin.
 
-The Pack Kodo, the Minimule (Forever's pack mule), the tabards and the signposts are WoW Forever's own
-art, converted for 3.3.5a (see The client patch, below). As in Forever, both sides ride the Pack Kodo.
+The Pack Kodo, the pack mule (the Minimule and the Pack Mule mount), the tabards and the signposts are
+WoW Forever's own art, converted for 3.3.5a (see The client patch, below). As in Forever, both sides ride
+the Pack Kodo; Forever has no Pack Mule mount, and here the Horde's Kodo Handler sells one too, Forever's
+pack mule at full size.
 
 **The Advertising License.** The application starts "Sign Me Up!" and comes with a Massive Pile of
 Forms. Use the pile to sign them (10 seconds), then bring the completed forms and the application to the

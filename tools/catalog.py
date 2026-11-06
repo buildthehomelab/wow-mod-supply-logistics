@@ -40,7 +40,7 @@ CURRENCY_ID, CURRENCY_BIT, CURRENCY_CATEGORY = 3402, 33, 4   # Forever's id; cat
 # --- Spells ----------------------------------------------------------------------------------------
 
 SPELL_FILL, SPELL_OPEN_WRIT, SPELL_CERTIFY, SPELL_RECEIPT, SPELL_QUILL = 90740, 90741, 90742, 90743, 90744
-SPELL_PACK_KODO, SPELL_MINIMULE = 90745, 90747
+SPELL_PACK_KODO, SPELL_PACK_MULE, SPELL_MINIMULE = 90745, 90746, 90747
 SPELL_SIGN_FORM, SPELL_SIGNPOSTS = 90748, (90749, 90750)    # the forms; the Orcish and Dwarven toys
 LEARN = 55884                                     # the stock "learn this companion or mount" trigger
 
@@ -61,6 +61,7 @@ USE_SPELLS = [
 # (spell, template, creature the effect summons or mounts, name, description, spell icon template)
 MOUNT_SPELLS = [
     (SPELL_PACK_KODO, 23249, 9531102, "Pack Kodo", "Summons and dismisses a rideable pack kodo. This is a very fast mount.", 23249),
+    (SPELL_PACK_MULE, 23229, 9531101, "Pack Mule", "Summons and dismisses a rideable pack mule. This is a very fast mount.", 23229),
 ]
 PET_SPELLS = [
     (SPELL_MINIMULE, 28739, 9531100, "Minimule", "Right Click to summon and dismiss your Minimule.", 28739),
@@ -140,9 +141,10 @@ SEALED_WRITS = {1: 262887, 2: 262888, 3: 262889, 4: 262890}
 RETIRED_WRITS = [(94265, 264065), (94269, 264069), (94339, 264139)]
 RECEIPT, CONTAINER, CRATE_RETURN, RECEIPT_REP = 262902, 262917, 93862, 50
 QUILLS = (262896, 90743)                         # Horde, Alliance
-REINS = 262766                                     # both sides, as Forever's Mule Handler sells it too
+REINS = (262766, 90741)                            # Pack Kodo (both sides, as Forever), Pack Mule (Horde)
 TREATS = (284664, 90742)
 MINIMULE = 9531100                                 # creature
+MULE_MOUNT = 9531101                               # creature: the Pack Mule mount's one look
 PACK_KODO = 9531102                                # creature: the Pack Kodo mount's one look
 
 # --- Tabards and the signpost toy ------------------------------------------------------------------
@@ -169,11 +171,7 @@ SIGN_SECONDS = 1800                     # a chosen sign stands half an hour, as 
 BOARD_OFFSET, BOARD_TURN = (0.0, 1.0, 0.04), 1.5707964
 
 # Creature displays (data/looks.tsv; tools/build_art.py converts Forever's models into them).
-LOOK = {"pack_kodo": 95310, "minimule": 95311, "orc_post": 95313, "dwarf_post": 95321}
-
-# The Pack Mule mount, taken out on 2026-11-05 (Forever has none: the Alliance rides the Pack Kodo too). Its rows are
-# still deleted, and build_patch.py takes them out of the client's tables.
-RETIRED_MULE_ITEM, RETIRED_MULE_SPELL, RETIRED_MULE_CREATURE = 90741, 90746, 9531101
+LOOK = {"pack_kodo": 95310, "minimule": 95311, "pack_mule": 95312, "orc_post": 95313, "dwarf_post": 95321}
 ORC_SIGN_LOOKS, DWARF_BOARD_LOOKS = 95314, 95322           # then one per SIGNS row, in its order
 
 # Item displays the client lacks: (id, icon, {ItemDisplayInfo texture field: name}, geoset group, sound).
@@ -227,6 +225,7 @@ DISPLAY = {
     "certification": 54524,         # inv_scroll_15
     "treat": 21115,                 # inv_misc_food_54
     "reins_kodo": 29447,            # ability_mount_kodo_03
+    "reins_mule": 13108,            # ability_mount_ridinghorse
     "tabard_horde": 90750, "tabard_alliance": 90751,
     "license_horde": 90752, "license_alliance": 90753,
     "forms": 3019,                  # inv_letter_03, Forever's
@@ -325,10 +324,13 @@ def items():
         add(item, "%s Certification" % PROFESSION_NAMES[skill], 15, 4, DISPLAY["certification"], 2, bonding=1,
             skill=skill, skill_rank=300, spell=SPELL_CERTIFY, script="item_supply_certification",
             description="Unlocks the title \"%s\" for your account." % text.replace("%s ", ""))
-    # The mount and the Minimule need no reputation, as Forever's (its items name no faction). Both sides' handlers
-    # sell the one Reins of the Pack Kodo; each side's Supply Officer sells its own Packmule Treat.
-    add(REINS, "Reins of the Pack Kodo", 15, 5, DISPLAY["reins_kodo"], 4, bonding=1, skill=762, skill_rank=150,
-        spell=LEARN, spell2=SPELL_PACK_KODO, trigger2=6, level=40)
+    # The mounts and the Minimule need no reputation, as Forever's (its items name no faction); each side's
+    # handler or Supply Officer sells its own copy.
+    for item, spell, name, display in (
+            (REINS[0], SPELL_PACK_KODO, "Reins of the Pack Kodo", DISPLAY["reins_kodo"]),
+            (REINS[1], SPELL_PACK_MULE, "Reins of the Pack Mule", DISPLAY["reins_mule"])):
+        add(item, name, 15, 5, display, 4, bonding=1, skill=762, skill_rank=150, spell=LEARN, spell2=spell,
+            trigger2=6, level=40)
     for item in TREATS:
         add(item, "Packmule Treat", 15, 2, DISPLAY["treat"], 2, bonding=1, spell=LEARN, spell2=SPELL_MINIMULE,
             trigger2=6, sell=1250)

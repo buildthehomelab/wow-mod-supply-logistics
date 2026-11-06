@@ -670,6 +670,7 @@ INSERT INTO `item_template` (`entry`, `class`, `subclass`, `SoundOverrideSubclas
 (271626, 15, 4, -1, 'Leatherworking Certification', 54524, 2, 0, 1, 0, 0, 0, -1, -1, 1, 0, 165, 300, 0, 0, 0, 1, 90742, 0, 0, -1, -1, 0, 0, -1, -1, 1, 'Unlocks the title "the Leatherworker" for your account.', 0, -1, 0, 'item_supply_certification', 0),
 (271627, 15, 4, -1, 'Tailoring Certification', 54524, 2, 0, 1, 0, 0, 0, -1, -1, 1, 0, 197, 300, 0, 0, 0, 1, 90742, 0, 0, -1, -1, 0, 0, -1, -1, 1, 'Unlocks the title "the Tailor" for your account.', 0, -1, 0, 'item_supply_certification', 0),
 (262766, 15, 5, -1, 'Reins of the Pack Kodo', 29447, 4, 0, 1, 0, 0, 0, -1, -1, 40, 40, 762, 150, 0, 0, 0, 1, 55884, 0, 0, -1, -1, 90745, 6, -1, -1, 1, '', 0, -1, 0, '', 0),
+(90741, 15, 5, -1, 'Reins of the Pack Mule', 13108, 4, 0, 1, 0, 0, 0, -1, -1, 40, 40, 762, 150, 0, 0, 0, 1, 55884, 0, 0, -1, -1, 90746, 6, -1, -1, 1, '', 0, -1, 0, '', 0),
 (284664, 15, 2, -1, 'Packmule Treat', 21115, 2, 0, 1, 0, 1250, 0, -1, -1, 1, 0, 0, 0, 0, 0, 0, 1, 55884, 0, 0, -1, -1, 90747, 6, -1, -1, 1, '', 0, -1, 0, '', 0),
 (90742, 15, 2, -1, 'Packmule Treat', 21115, 2, 0, 1, 0, 1250, 0, -1, -1, 1, 0, 0, 0, 0, 0, 0, 1, 55884, 0, 0, -1, -1, 90747, 6, -1, -1, 1, '', 0, -1, 0, '', 0),
 (262764, 4, 0, -1, 'Durotar Supply and Logistics Tabard', 90750, 1, 0, 1, 50000, 12500, 19, -1, -1, 20, 0, 0, 0, 2587, 7, 1, 1, 0, 0, 0, -1, -1, 0, 0, -1, -1, 1, '', 0, 7, 0, '', 0),
@@ -681,7 +682,7 @@ INSERT INTO `item_template` (`entry`, `class`, `subclass`, `SoundOverrideSubclas
 (270870, 15, 0, -1, 'Orcish Tradeskill Signpost', 90754, 3, 0, 1, 0, 0, 0, -1, -1, 1, 0, 0, 0, 0, 0, 0, 1, 90749, 0, 0, -1, -1, 0, 0, -1, -1, 1, 'Open for business!', 0, -1, 0, '', 0),
 (270868, 15, 0, -1, 'Dwarven Tradeskill Signpost', 90755, 3, 0, 1, 0, 0, 0, -1, -1, 1, 0, 0, 0, 0, 0, 0, 1, 90750, 0, 0, -1, -1, 0, 0, -1, -1, 1, 'Open for business!', 0, -1, 0, '', 0);
 
--- The Minimule (Packmule Treat's companion), the Pack Kodo mount's look, and the signpost toys'
+-- The Minimule (Packmule Treat's companion), the Pack Mule and Pack Kodo mounts' looks, and the signpost toys'
 -- posts and signs (the posts are summoned by the toys' spells; the module puts the signs up). Their displays
 -- are Forever's models (data/looks.tsv, mod_supply_logistics_art.sql).
 DELETE FROM `creature_template_model` WHERE `CreatureID` IN (262713, 262718, 262720, 262721, 262722, 262723, 262724, 262725, 262727, 262728, 262729, 262730, 262731, 262732, 262733, 262734, 9531100, 9531101, 9531102, 9531103, 9531104, 9531105, 9531106, 9531107, 9531108, 9531109);
@@ -689,6 +690,7 @@ DELETE FROM `creature_template_movement` WHERE `CreatureId` IN (262713, 262718, 
 DELETE FROM `creature_template` WHERE `entry` IN (262713, 262718, 262720, 262721, 262722, 262723, 262724, 262725, 262727, 262728, 262729, 262730, 262731, 262732, 262733, 262734, 9531100, 9531101, 9531102, 9531103, 9531104, 9531105, 9531106, 9531107, 9531108, 9531109);
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`, `movementId`, `ScriptName`, `VerifiedBuild`) VALUES
 (9531100, 'Minimule', '', 1, 1, 188, 0, 1, 1.14286, 1, 768, 2048, 12, 2, 121, '', 0),
+(9531101, 'Pack Mule', '', 1, 1, 35, 0, 1, 1.14286, 1, 768, 2048, 1, 2, 0, '', 0),
 (9531102, 'Pack Kodo', '', 1, 1, 35, 0, 1, 1.14286, 1, 768, 2048, 1, 2, 0, '', 0),
 (262713, 'Orcish Tradeskill Signpost', '', 1, 1, 35, 1, 1, 1.14286, 1, 770, 2048, 10, 2, 0, 'npc_supply_signpost', 0),
 (262727, 'Dwarven Tradeskill Signpost', '', 1, 1, 35, 1, 1, 1.14286, 1, 770, 2048, 10, 2, 0, 'npc_supply_signpost', 0),
@@ -715,6 +717,7 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 (9531109, 'Tailoring', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0);
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) VALUES
 (9531100, 0, 95311, 1, 1, 0),
+(9531101, 0, 95312, 1, 1, 0),
 (9531102, 0, 95310, 1, 1, 0),
 (262713, 0, 95313, 1, 1, 0),
 (262727, 0, 95321, 1, 1, 0),
@@ -1782,6 +1785,7 @@ INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `Exte
 (256384, 1, 270887, 0, 0, 90752, 0),
 (256384, 2, 262764, 0, 0, 90747, 0),
 (256400, 0, 262766, 0, 0, 90754, 0),
+(256400, 1, 90741, 0, 0, 90754, 0),
 (256672, 0, 262896, 0, 0, 90740, 0),
 (256672, 1, 262902, 0, 0, 90740, 0),
 (248196, 0, 271621, 0, 0, 90751, 0),
