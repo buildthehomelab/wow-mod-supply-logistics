@@ -144,6 +144,9 @@ namespace SupplyLogistics
     void SelectQuillOption(Player* player, uint32 action);
     void OpenSealedWrit(Player* player, Item* sealed);
     void UseCertification(Player* player, Item* certification);
+    // The vendor shows a Certification to everyone (red below 300 skill) but checks only reputation
+    // when it sells: true, with the "not skilled enough" error sent, when this player may not buy it.
+    bool RefuseCertificationBuy(Player* player, uint32 item);
 
     // Titles: the account's Certifications, shown on characters with 300 skill.
     void LoadAccountTitles(Player* player);

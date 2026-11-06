@@ -80,7 +80,7 @@ server's reputation rates and racial bonuses like any quest reputation.
 | Mule Handler (Alliance) | Reins of the Pack Mule: a 100% ground mount | 6,000 | Exalted, Journeyman Riding |
 | Uncertified Scribe | Forger's Quill | 15 | Honored |
 | Uncertified Scribe | Forged Delivery Receipt | 15 | |
-| Each profession vendor (shown at 300 skill) | Its Certification: the title "the Alchemist", "the Blacksmith", "the Enchanter", "the Engineer", "the Leatherworker" or "the Tailor" | 1,000 | 300 skill |
+| Each profession vendor (red below 300 skill) | Its Certification: the title "the Alchemist", "the Blacksmith", "the Enchanter", "the Engineer", "the Leatherworker" or "the Tailor" | 1,000 | 300 skill |
 
 A **Certification** unlocks its title for every character on the account; a character shows it while
 it has 300 skill in the profession, racial bonuses included (checked at login and whenever the skill
