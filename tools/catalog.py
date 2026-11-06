@@ -121,6 +121,9 @@ CRAFTED_BONUS = 1.5
 WRIT_FAVOR = {75: 20, 125: 35, 200: 50}
 
 SEALED_WRITS = {1: 262887, 2: 262888, 3: 262889, 4: 262890}
+# Writs an earlier version added, for items nobody can craft (see fetch_forever.py NOT_CRAFTABLE):
+# (quest, writ item). Their rows are still deleted, so a server that ran that version is left clean.
+RETIRED_WRITS = [(94265, 264065), (94269, 264069), (94339, 264139)]
 RECEIPT, CONTAINER, CRATE_RETURN, RECEIPT_REP = 262902, 262917, 93862, 50
 QUILLS = (262896, 90743)                         # Horde, Alliance
 REINS = (262766, 90741)
@@ -171,7 +174,7 @@ def bundles():
 def writs():
     rows = read_tsv("writs.tsv")
     for r in rows:
-        for k in ("quest", "writ", "item", "count", "skill", "yellow", "tier", "rep"):
+        for k in ("quest", "writ", "item", "count", "skill", "skill2", "yellow", "tier", "rep"):
             r[k] = int(r[k])
     return rows
 
@@ -222,9 +225,12 @@ def items():
             spell=SPELL_OPEN_WRIT, script="item_supply_sealed_writ",
             description="A pending crafting order intercepted in transit. The order inside is for a %s craftsman."
                         % TIER_NAMES[tier].lower())
+    # A writ is tradable, as Forever's. It is also its quest's first objective, and the core keeps a
+    # quest's starting item only when it is a required item with a MaxCount: so one of each at a time.
     for w in writs():
-        add(w["writ"], "Craftsman's Writ: " + w["name"], 12, 0, DISPLAY["writ"], 3, startquest=w["quest"],
-            description="A customer's crafting order. Read it to take the order, then bring the goods to a Contract Coordinator.")
+        add(w["writ"], "Craftsman's Writ: " + w["name"], 12, 0, DISPLAY["writ"], 3, startquest=w["quest"], maxcount=1,
+            level=10, description="A pending crafting order. Read it to take the order, then bring it and the goods "
+                                  "to a Contract Coordinator.")
 
     add(RECEIPT, "Forged Delivery Receipt", 15, 0, DISPLAY["receipt"], 1, stackable=20, bonding=1,
         spell=SPELL_RECEIPT, script="item_supply_receipt")

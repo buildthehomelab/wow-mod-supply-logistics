@@ -9,8 +9,8 @@
 - Writs: Efficient Games' EG Link output (CC BY 4.0), quests.enUS.json: each Craftsman's Writ quest,
   the item it asks for and the reputation it pays (the override is reputation x 100).
 - Reagent and crafted item ids: the names in fitzforge/polestar's item.jsonl, which are Blizzard's own.
-- A writ's profession and skill: the 3.3.5a client's Spell.dbc and SkillLineAbility.dbc, from the spell
-  that creates its item. Its tier (1 Apprentice to 4 Artisan) follows the reputation Forever pays
+- A writ's professions and skill: the 3.3.5a client's Spell.dbc and SkillLineAbility.dbc, from the
+  spells that create its item (skill2: a second profession with a recipe for it, or 0). Its tier (1 Apprentice to 4 Artisan) follows the reputation Forever pays
   for it (see writ_tier).
 
 Only needed to refresh the data from a newer Forever build: the TSVs are committed. Needs Python 3,
@@ -38,8 +38,19 @@ CRAFTED = ("Fabrics", "Ingots", "Parts")
 TIERS = {"Apprentice": 1, "Journeyman": 2, "Expert": 3, "Artisan": 4}
 # Names polestar lists more than once: the one every recipe and vein uses.
 NAME_OVERRIDES = {"Dark Iron Ore": 11370}
-# Writ items Forever made for itself: a 3.3.5a server has no such item, so the writ is left out.
+# Writ items Forever made for itself have no 3.3.5a recipe, so those writs are left out.
 SKILLS = {171: "Alchemy", 164: "Blacksmithing", 202: "Engineering", 165: "Leatherworking", 197: "Tailoring"}
+# Items a 3.3.5a recipe makes but nobody can learn it on an AzerothCore world database: no vendor,
+# drop, trainer or quest teaches the recipe (checked 2026-11-05, with mod-individual-progression).
+# A writ for one would be an order no player can fill, so it is left out too.
+NOT_CRAFTABLE = {
+    9060: "Plans: Inlaid Mithril Cylinder (10713) has no source",
+    9061: "Recipe: Goblin Rocket Fuel (10644) has no source",
+    18232: "Schematic: Field Repair Bot 74A (18235) teaches no spell and no trainer has it",
+}
+# polestar has Classic Era names; these items are named differently on a 3.3.5a server, and the
+# writ and its quest should use the name the player sees on the item.
+REALM_NAMES = {3388: "Strong Troll's Blood Elixir", 18645: "Gnomish Alarm-o-Bot"}
 # A writ's tier follows Forever's three reputation rewards: 200 Artisan, 125 Expert, and 75 split
 # into Apprentice and Journeyman at the skill where the recipe turns yellow.
 JOURNEYMAN_FROM = 150
@@ -124,17 +135,23 @@ def writs(eg, client, ids_by_name):
         if len(writ) != 1 or len(made) != 1:
             sys.exit("quest %s has objectives %r" % (quest_id, q["objectives"]))
         item = made[0]["objectId"]
-        skill = next((skill_of[s] for s in creates.get(item, []) if s in skill_of and skill_of[s][0] in SKILLS), None)
-        if not skill:
-            skipped.append((quest_id, q["title"]))
+        # Every profession with a recipe for it (Gordok Ogre Suit: Tailoring and Leatherworking).
+        # In the client's spell order; the first is the writ's own.
+        skills = list(dict.fromkeys(skill_of[s] for s in creates.get(item, []) if s in skill_of and skill_of[s][0] in SKILLS))
+        if not skills:
+            skipped.append((quest_id, q["title"], "no 3.3.5a recipe makes its item"))
+            continue
+        if item in NOT_CRAFTABLE:
+            skipped.append((quest_id, q["title"], NOT_CRAFTABLE[item]))
             continue
         rep = q["rewards"]["reputation"][0]["override"] // 100
-        tier = writ_tier(rep, skill[1])
-        rows.append((int(quest_id), writ[0]["objectId"], item, made[0]["amount"], skill[0], skill[1], tier, rep,
-                     names.get(item, q["title"][len("Craftsman's Writ: "):])))
+        tier = writ_tier(rep, skills[0][1])
+        name = REALM_NAMES.get(item) or names.get(item, q["title"][len("Craftsman's Writ: "):])
+        rows.append((int(quest_id), writ[0]["objectId"], item, made[0]["amount"], skills[0][0],
+                     skills[1][0] if len(skills) > 1 else 0, skills[0][1], tier, rep, name))
     rows.sort(key=lambda r: r[1])
-    for quest_id, title in skipped:
-        print("left out %s %s: no 3.3.5a recipe makes its item" % (quest_id, title))
+    for quest_id, title, why in skipped:
+        print("left out %s %s: %s" % (quest_id, title, why))
     return rows
 
 
@@ -158,7 +175,7 @@ def main():
     crate_rows, bundle_rows = crates(args.cache, ids)
     write("crates.tsv", ["item", "tier", "group", "kind", "level", "name"], crate_rows)
     write("bundles.tsv", ["crate", "slot", "reagent", "count", "name"], bundle_rows)
-    write("writs.tsv", ["quest", "writ", "item", "count", "skill", "yellow", "tier", "rep", "name"],
+    write("writs.tsv", ["quest", "writ", "item", "count", "skill", "skill2", "yellow", "tier", "rep", "name"],
           writs(args.eg, args.client, ids))
 
 

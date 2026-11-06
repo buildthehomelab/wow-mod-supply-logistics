@@ -73,6 +73,7 @@ namespace SupplyLogistics
         uint32 quest = 0;
         uint8 tier = 0;
         uint16 skill = 0;
+        uint16 skill2 = 0;     // a second profession with a recipe for it, or 0
     };
 
     struct Title
