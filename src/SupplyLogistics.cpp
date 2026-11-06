@@ -201,15 +201,27 @@ namespace SupplyLogistics
             return Acore::Containers::SelectRandomContainerElement(all);
         }
 
+        // The writ's order is in the quest log.
+        bool OrderTaken(Player* player, Writ const& writ)
+        {
+            return player->FindQuestSlot(writ.quest) < MAX_QUEST_LOG_SIZE;
+        }
+
+        // The player holds this writ (bags or bank) or has taken its order: a writ is one at a time.
+        bool HasWrit(Player* player, Writ const& writ)
+        {
+            return player->GetItemCount(writ.item, true) || OrderTaken(player, writ);
+        }
+
         Writ const* PickWrit(Player* player, uint8 tier, uint32 except = 0)
         {
             std::vector<Writ const*> all, own;
             for (auto const& [item, writ] : writs)
             {
-                if (writ.tier != tier || item == except)
+                if (writ.tier != tier || item == except || HasWrit(player, writ))
                     continue;
                 all.push_back(&writ);
-                if (player->HasSkill(writ.skill))
+                if (player->HasSkill(writ.skill) || (writ.skill2 && player->HasSkill(writ.skill2)))
                     own.push_back(&writ);
             }
             if (all.empty())
@@ -300,7 +312,7 @@ namespace SupplyLogistics
             } while (result->NextRow());
         }
 
-        if (QueryResult result = WorldDatabase.Query("SELECT writ, quest, tier, skill FROM mod_supply_logistics_writ"))
+        if (QueryResult result = WorldDatabase.Query("SELECT writ, quest, tier, skill, skill2 FROM mod_supply_logistics_writ"))
         {
             do
             {
@@ -310,6 +322,7 @@ namespace SupplyLogistics
                 writ.quest = f[1].Get<uint32>();
                 writ.tier = f[2].Get<uint8>();
                 writ.skill = f[3].Get<uint16>();
+                writ.skill2 = f[4].Get<uint16>();
                 if (!writ.tier || writ.tier > MAX_TIER || !sObjectMgr->GetItemTemplate(writ.item)
                     || !sObjectMgr->GetQuestTemplate(writ.quest))
                 {
@@ -530,15 +543,23 @@ namespace SupplyLogistics
         for (uint8 t = 1; t <= MAX_TIER; ++t)
             if (SEALED_WRITS[t] == item->GetEntry())
                 tier = t;
-        Writ const* writ = tier ? PickWrit(player, tier) : nullptr;
-        if (!writ)
+        if (!tier)
             return;
-        if (!HasRoomFor(player, writ->item))
+        Writ const* writ = PickWrit(player, tier);
+        if (!writ)
+        {
+            Say(player, "You already hold every writ this envelope could hold.");
+            return;
+        }
+        // The last envelope of a stack frees its own slot.
+        if (item->GetCount() > 1 && !HasRoomFor(player, writ->item))
         {
             Say(player, "Make room in your bags first.");
             return;
         }
-        player->DestroyItemCount(item->GetEntry(), 1, true);
+        // From the stack that was used, so it is that one's slot that frees up.
+        uint32 one = 1;
+        player->DestroyItemCount(item, one, true);
         GiveItem(player, writ->item);
     }
 
@@ -548,14 +569,15 @@ namespace SupplyLogistics
         uint32 shown = 0;
         for (auto const& [entry, writ] : writs)
         {
-            if (shown >= MAX_MENU_OPTIONS || !Carries(player, entry))
+            // A taken order keeps its writ as an objective: rewriting it would strand the order.
+            if (shown >= MAX_MENU_OPTIONS || !Carries(player, entry) || OrderTaken(player, writ))
                 continue;
             AddGossipItemFor(player, GOSSIP_ICON_TRAINER, ItemName(entry), GOSSIP_SENDER_MAIN, entry);
             ++shown;
         }
         if (!shown)
         {
-            Say(player, "You have no Craftsman's Writ to rewrite: an order you have taken can't be.");
+            Say(player, "You have no Craftsman's Writ to rewrite. An order you have taken can't be: abandon it first.");
             return;
         }
         SendGossipMenuFor(player, NPC_TEXT_QUILL, item->GetGUID());
@@ -569,11 +591,14 @@ namespace SupplyLogistics
         for (uint32 entry : { 262896u, 90743u })
             if (Carries(player, entry))
                 quill = entry;
-        if (!writ || !quill || !Carries(player, writ->item))
+        if (!writ || !quill || !Carries(player, writ->item) || OrderTaken(player, *writ))
             return;
         Writ const* next = PickWrit(player, writ->tier, writ->item);
         if (!next)
+        {
+            Say(player, "There is no other writ of this tier to rewrite it into.");
             return;
+        }
         player->DestroyItemCount(quill, 1, true);
         player->DestroyItemCount(writ->item, 1, true);
         GiveItem(player, next->item);

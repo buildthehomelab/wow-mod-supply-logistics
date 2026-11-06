@@ -12,13 +12,15 @@ Released under the MIT License.
 import os
 
 from catalog import (COSTS, CURRENCY_ID, FACTIONS, MOUNT_SPELLS, PET_SPELLS, USE_SPELLS, KINDS, TEXT_CRATE, TEXT_QUILL, TEXT_RECEIPT, CHEF_GOODS, CONTAINER, COST_ID, CRATE_RETURN, FAVOR, MINIMULE, MULE_MOUNT, NPC, PROFESSION_VENDORS, QUILLS,
-                     RECEIPT, RECEIPT_REP, REINS, SEALED, TIER_NAMES, TITLES, TREATS, WRIT_FAVOR, bundles, crates,
+                     RECEIPT, RECEIPT_REP, REINS, RETIRED_WRITS, SEALED, TIER_NAMES, TITLES, TREATS, WRIT_FAVOR, bundles, crates,
                      items, sealed_pay, writs)
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "sql", "db-world",
                    "mod_supply_logistics_world.sql")
 UNINSTALL = os.path.normpath(os.path.join(os.path.dirname(OUT), "..", "uninstall", "mod_supply_logistics_uninstall_world.sql"))
 REPEATABLE = 1                # quest_template_addon.SpecialFlags
+RETIRED_QUESTS = [quest for quest, _item in RETIRED_WRITS]
+RETIRED_ITEMS = [item for _quest, item in RETIRED_WRITS]
 HAND_IN_TEXT = "Another delivery! Fantastic. Set it over by the pile and we can discuss your compensation."
 
 
@@ -50,9 +52,12 @@ def main():
     w("CREATE TABLE IF NOT EXISTS `mod_supply_logistics_bundle` (")
     w("  `crate` INT UNSIGNED NOT NULL, `slot` TINYINT UNSIGNED NOT NULL, `reagent` INT UNSIGNED NOT NULL,")
     w("  `count` INT UNSIGNED NOT NULL, PRIMARY KEY (`crate`, `slot`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
-    w("CREATE TABLE IF NOT EXISTS `mod_supply_logistics_writ` (")
+    # Only generated rows: dropped and made again, so a server that ran an older copy gets the new columns.
+    w("DROP TABLE IF EXISTS `mod_supply_logistics_writ`;")
+    w("CREATE TABLE `mod_supply_logistics_writ` (")
     w("  `writ` INT UNSIGNED NOT NULL, `quest` INT UNSIGNED NOT NULL, `tier` TINYINT UNSIGNED NOT NULL,")
-    w("  `skill` SMALLINT UNSIGNED NOT NULL, PRIMARY KEY (`writ`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
+    w("  `skill` SMALLINT UNSIGNED NOT NULL, `skill2` SMALLINT UNSIGNED NOT NULL DEFAULT 0,")
+    w("  PRIMARY KEY (`writ`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
     w("CREATE TABLE IF NOT EXISTS `mod_supply_logistics_quest` (")
     w("  `quest` INT UNSIGNED NOT NULL, `rep` INT UNSIGNED NOT NULL, PRIMARY KEY (`quest`))")
     w("  ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
@@ -66,8 +71,9 @@ def main():
     w("INSERT INTO `mod_supply_logistics_bundle` (`crate`, `slot`, `reagent`, `count`) VALUES")
     w(",\n".join("(%d, %d, %d, %d)" % (b["crate"], b["slot"], b["reagent"], b["count"]) for b in bundle_rows) + ";")
     w("DELETE FROM `mod_supply_logistics_writ`;")
-    w("INSERT INTO `mod_supply_logistics_writ` (`writ`, `quest`, `tier`, `skill`) VALUES")
-    w(",\n".join("(%d, %d, %d, %d)" % (r["writ"], r["quest"], r["tier"], r["skill"]) for r in writ_rows) + ";")
+    w("INSERT INTO `mod_supply_logistics_writ` (`writ`, `quest`, `tier`, `skill`, `skill2`) VALUES")
+    w(",\n".join("(%d, %d, %d, %d, %d)" % (r["writ"], r["quest"], r["tier"], r["skill"], r["skill2"])
+                 for r in writ_rows) + ";")
     quest_rep = [(quest, sealed_pay(group, tier)[1]) for (group, tier), (_item, quest) in SEALED.items()]
     quest_rep += [(r["quest"], r["rep"]) for r in writ_rows]
     quest_rep.append((CRATE_RETURN, RECEIPT_REP))
@@ -89,7 +95,7 @@ def main():
     # --- Items -----------------------------------------------------------------------------------
     item_ids = [i["entry"] for i in all_items]
     w("-- The items: Forever's ids where Forever has them. Their client rows (icons) are build_patch.py's.")
-    w("DELETE FROM `item_template` WHERE `entry` IN (%s);" % ids(item_ids))
+    w("DELETE FROM `item_template` WHERE `entry` IN (%s);" % ids(item_ids + RETIRED_ITEMS))
     cols = ["entry", "class", "subclass", "SoundOverrideSubclass", "name", "displayid", "Quality", "Flags",
             "BuyCount", "BuyPrice", "SellPrice", "InventoryType", "AllowableClass", "AllowableRace", "ItemLevel",
             "RequiredLevel", "RequiredSkill", "RequiredSkillRank", "RequiredReputationFaction",
@@ -157,28 +163,28 @@ def main():
     offer.append((CRATE_RETURN, "Signed and stamped. Close enough. Thanks for bringing it back."))
     for r in writ_rows:
         made = r["name"] if r["count"] == 1 else "%d %s" % (r["count"], r["name"])
-        # The writ itself is not an objective: taking the order uses it up (the core destroys a quest's
-        # starting item unless it is a required item with a MaxCount).
-        qlines.append("(%d, 2, -1, 10, 0, 0, 0, %d, %d, 0, 0, %d, %d, %s, %s, %s, %s, 0)" % (
-            r["quest"], r["item"], r["count"], FAVOR, WRIT_FAVOR[r["rep"]], q("Craftsman's Writ: " + r["name"]),
-            q("Bring %s to a Contract Coordinator at your faction's trade camp." % made),
+        # As Forever's, the writ is the first objective: it stays in the bags while the order is open
+        # (an abandoned order can be taken again) and goes with the goods at the hand-in.
+        qlines.append("(%d, 2, -1, 10, 0, 0, 0, %d, 1, %d, %d, %d, %d, %s, %s, %s, %s, 0)" % (
+            r["quest"], r["writ"], r["item"], r["count"], FAVOR, WRIT_FAVOR[r["rep"]], q("Craftsman's Writ: " + r["name"]),
+            q("Bring the writ and %s to a Contract Coordinator at your faction's trade camp." % made),
             q("<Penned in faded ink, the note asks for %s, with delivery instructions and the promised payment.>" % made),
             q("Return to a Contract Coordinator at your faction's trade camp.")))
         request.append((r["quest"], "An order for us? Let's see whether the goods match it."))
         offer.append((r["quest"], "Exactly what the customer asked for. Here's your payment."))
     w("-- The quests: Forever's ids. A Sealed crate, an empty container or a writ with its goods, handed")
     w("-- in for Merchant's Favor. All repeatable; the module pays the reputation.")
-    w("DELETE FROM `quest_template` WHERE `ID` IN (%s);" % ids(quest_ids))
+    w("DELETE FROM `quest_template` WHERE `ID` IN (%s);" % ids(quest_ids + RETIRED_QUESTS))
     w("INSERT INTO `quest_template` (%s) VALUES" % ", ".join("`%s`" % c for c in qcols))
     w(",\n".join(qlines) + ";")
-    w("DELETE FROM `quest_template_addon` WHERE `ID` IN (%s);" % ids(quest_ids))
+    w("DELETE FROM `quest_template_addon` WHERE `ID` IN (%s);" % ids(quest_ids + RETIRED_QUESTS))
     w("INSERT INTO `quest_template_addon` (`ID`, `SpecialFlags`) VALUES")
     w(",\n".join("(%d, %d)" % (quest, REPEATABLE) for quest in sorted(quest_ids)) + ";")
-    w("DELETE FROM `quest_request_items` WHERE `ID` IN (%s);" % ids(quest_ids))
+    w("DELETE FROM `quest_request_items` WHERE `ID` IN (%s);" % ids(quest_ids + RETIRED_QUESTS))
     w("INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`, "
       "`VerifiedBuild`) VALUES")
     w(",\n".join("(%d, 1, 1, %s, 0)" % (quest, q(text)) for quest, text in sorted(request)) + ";")
-    w("DELETE FROM `quest_offer_reward` WHERE `ID` IN (%s);" % ids(quest_ids))
+    w("DELETE FROM `quest_offer_reward` WHERE `ID` IN (%s);" % ids(quest_ids + RETIRED_QUESTS))
     w("INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES")
     w(",\n".join("(%d, 4, %s, 0)" % (quest, q(text)) for quest, text in sorted(offer)) + ";")
     w("")
@@ -195,10 +201,10 @@ def main():
                   % (quest, item) for quest, item in sorted(hand_ins)) + ";")
     w("-- Sealed crates and containers at the Inventory Intake; writs start from their item and end at")
     w("-- the Contract Coordinator. The module gives these NPCs their quest and vendor flags.")
-    w("DELETE FROM `creature_queststarter` WHERE `quest` IN (%s);" % ids(quest_ids))
+    w("DELETE FROM `creature_queststarter` WHERE `quest` IN (%s);" % ids(quest_ids + RETIRED_QUESTS))
     w("INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES")
     w(",\n".join("(%d, %d)" % (npc, quest) for npc in NPC["intake"] for quest in sorted(intake_quests)) + ";")
-    w("DELETE FROM `creature_questender` WHERE `quest` IN (%s);" % ids(quest_ids))
+    w("DELETE FROM `creature_questender` WHERE `quest` IN (%s);" % ids(quest_ids + RETIRED_QUESTS))
     w("INSERT INTO `creature_questender` (`id`, `quest`) VALUES")
     enders = [(npc, quest) for npc in NPC["intake"] for quest in sorted(intake_quests)]
     enders += [(npc, r["quest"]) for npc in NPC["coordinator"] for r in writ_rows]
@@ -251,14 +257,14 @@ def write_uninstall(item_ids, quest_ids, vendors):
         "-- Run by hand. Items already in bags and mail become unknown items; the client patch keeps its rows.",
         "DROP TABLE IF EXISTS `mod_supply_logistics_crate`, `mod_supply_logistics_bundle`, `mod_supply_logistics_writ`, "
         "`mod_supply_logistics_quest`;",
-        "DELETE FROM `item_template` WHERE `entry` IN (%s);" % ids(item_ids),
-        "DELETE FROM `quest_template` WHERE `ID` IN (%s);" % ids(quest_ids),
-        "DELETE FROM `quest_template_addon` WHERE `ID` IN (%s);" % ids(quest_ids),
-        "DELETE FROM `quest_request_items` WHERE `ID` IN (%s);" % ids(quest_ids),
-        "DELETE FROM `quest_offer_reward` WHERE `ID` IN (%s);" % ids(quest_ids),
-        "DELETE FROM `creature_queststarter` WHERE `quest` IN (%s);" % ids(quest_ids),
-        "DELETE FROM `creature_questender` WHERE `quest` IN (%s);" % ids(quest_ids),
-        "DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (%s);" % ids(quest_ids),
+        "DELETE FROM `item_template` WHERE `entry` IN (%s);" % ids(item_ids + RETIRED_ITEMS),
+        "DELETE FROM `quest_template` WHERE `ID` IN (%s);" % ids(quest_ids + RETIRED_QUESTS),
+        "DELETE FROM `quest_template_addon` WHERE `ID` IN (%s);" % ids(quest_ids + RETIRED_QUESTS),
+        "DELETE FROM `quest_request_items` WHERE `ID` IN (%s);" % ids(quest_ids + RETIRED_QUESTS),
+        "DELETE FROM `quest_offer_reward` WHERE `ID` IN (%s);" % ids(quest_ids + RETIRED_QUESTS),
+        "DELETE FROM `creature_queststarter` WHERE `quest` IN (%s);" % ids(quest_ids + RETIRED_QUESTS),
+        "DELETE FROM `creature_questender` WHERE `quest` IN (%s);" % ids(quest_ids + RETIRED_QUESTS),
+        "DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (%s);" % ids(quest_ids + RETIRED_QUESTS),
         "DELETE FROM `npc_vendor` WHERE `entry` IN (%s);" % ids(vendors),
         "DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` IN (%s);" % ids(vendors),
         "DELETE FROM `creature_template_model` WHERE `CreatureID` IN (%d, %d);" % (MINIMULE, MULE_MOUNT),

@@ -39,22 +39,29 @@ becomes a **Sealed crate**, which the **Inventory Intake** at your faction's tra
 
 **Writs.** Mobs also drop **Sealed Writs** (1%, by the mob's level, uncapped: any opens from level 10). Opening one gives a **Craftsman's
 Writ**, a customer's order for a crafted item, leaning towards your own crafting professions. Read it
-to take the order (the writ is used up, and lost if you abandon the order), then bring the goods to the **Contract Coordinator**. 149 writs, for Alchemy, Blacksmithing,
-Engineering, Leatherworking and Tailoring:
+to take the order, then bring the writ and the goods to the **Contract Coordinator**. As in Forever,
+the writ stays in your bags until the hand-in: abandon the order and you can read it again. A writ
+can be traded or put on the auction house, one of each at a time (a Sealed Writ never opens into one you hold or have
+taken). No profession is needed to fill one: the goods can come from anyone. 146 writs, for Alchemy,
+Blacksmithing, Engineering, Leatherworking and Tailoring:
 
 | Tier | Writs | Favor | Reputation |
 | --- | --- | --- | --- |
 | Apprentice | 18 | 20 | 75 |
 | Journeyman | 27 | 20 | 75 |
-| Expert | 60 | 35 | 125 |
-| Artisan | 44 | 50 | 200 |
+| Expert | 58 | 35 | 125 |
+| Artisan | 43 | 50 | 200 |
 
-The reputation is Forever's own; the tier follows it (75 splits at the skill where the recipe turns
-yellow, 150).
+The reputation is Forever's own; the tier follows it. Forever calls all its 75-reputation writs
+Journeyman; here they split at the skill where the recipe turns yellow (150), so the Sealed
+Apprentice's Writ has orders of its own. Forever's writs are dailies; these can be repeated at once.
+Left out: Distilled Firewater (Forever's own item), and Goblin Rocket Fuel, Inlaid Mithril Cylinder
+and Field Repair Bot 74A: no vendor, drop, trainer or quest teaches their recipes in an AzerothCore
+world database (checked with mod-individual-progression installed).
 
 **Odds and ends.** A **Forged Delivery Receipt** (15 Favor) on a crate you can't fill turns it into a
 Notarized Shipping Container, worth 50 reputation at the Inventory Intake. A **Forger's Quill** (15
-Favor, Honored) rewrites a writ you haven't taken yet into another of its tier.
+Favor, Honored) rewrites a writ whose order you haven't taken into another of its tier.
 
 **Reputation.** Hand-ins pay your own side's faction only: the Horde races Durotar Supply and
 Logistics, the Alliance races the Azeroth Commerce Authority. It sits under Horde or Alliance in the
