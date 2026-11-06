@@ -20,6 +20,10 @@ patch gains them. What gets added (ids in catalog.py):
 - SpellIcon.dbc: the icons of those three, which the client has no row for.
 - Item.dbc: every item of the module, so it has its icon everywhere.
 - ItemDisplayInfo.dbc: the tabards (Forever's textures), the license applications and the toys.
+- Spell.dbc and SkillLineAbility.dbc, for the recipes (data/recipes.tsv): each recipe's craft spell
+  on its profession's line, and what its product does when used (a drink and its Well Fed).
+- ItemDisplayInfo.dbc, for the recipes: an icon-only display for each recipe icon the client has no
+  display for.
 - Faction.dbc: Durotar Supply and Logistics (2587, under Horde) and the Azeroth Commerce Authority
   (2586, under Alliance), hidden from the other side's races.
 - CharTitles.dbc: the six Certification titles.
@@ -42,6 +46,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dbcmpq  # noqa: E402
 from dbcmpq import add_string, read_dbc, string_at, write_dbc  # noqa: E402
+from catalog import (CRAFT_TEMPLATE, DRINK_ICON, DRINK_TEMPLATE, ICON_DISPLAYS, ICON_DISPLAY_TEMPLATE,  # noqa: E402
+                     STAT_NAMES, WELL_FED_ICON, WELL_FED_TEMPLATE, new_displays, recipes)
 from catalog import (COMPLETED_FORMS, COSTS, CURRENCY_BIT, CURRENCY_CATEGORY, CURRENCY_ID, FACTIONS, FAVOR,  # noqa: E402
                      FORM_CAST_TIME, FORM_TEMPLATE, ITEM_DISPLAYS, MOUNT_SPELLS, PET_SPELLS, SIGNPOST_CAST_TIME,
                      SIGNPOST_COOLDOWN, SIGNPOST_DURATION, SIGNPOST_RADIUS, SIGNPOSTS, SKILL_COMPANIONS, SKILL_MOUNTS,
@@ -51,7 +57,9 @@ from catalog import (COMPLETED_FORMS, COSTS, CURRENCY_BIT, CURRENCY_CATEGORY, CU
 SPELL_FIELDS = 234
 F_CATEGORY, F_ATTRIBUTES, F_ATTRIBUTES_LAST = 1, 4, 11
 F_CAST_TIME, F_RECOVERY, F_CATEGORY_RECOVERY, F_INTERRUPT = 28, 29, 30, 31
-F_DURATION, F_RANGE = 40, 46
+F_LEVELS, F_DURATION, F_RANGE = (37, 38, 39), 40, 46
+F_REAGENTS, F_REAGENT_COUNTS = 52, 60
+F_ITEM_TYPE, F_AMPLITUDE, F_TRIGGER = 107, 98, 116
 F_EFFECT, F_DIE_SIDES, F_BASE_POINTS, F_TARGET_A, F_AURA, F_MISC = 71, 74, 80, 86, 95, 110
 F_VISUAL, F_ICON, F_ACTIVE_ICON, F_NAME, F_SUBTEXT, F_DESCRIPTION, F_AURA_TEXT = 131, 133, 134, 136, 153, 170, 187
 F_GCD_CATEGORY, F_GCD, F_FAMILY, F_SCHOOL = 205, 206, 208, 225
@@ -60,8 +68,13 @@ STRING_FIELDS = set(range(136, 152)) | set(range(153, 169)) | set(range(170, 186
 FLOAT_FIELDS = {47, 77, 78, 79, 101, 102, 103, 119, 120, 121, 216, 217, 218, 229, 230, 231}
 SIGNED_FIELDS = {0, 13, 15, 41, *range(52, 71), 74, 75, 76, 80, 81, 82, *range(110, 116), 224, 228}
 EFFECT_DUMMY, TARGET_UNIT_CASTER, CAST_INSTANT, RANGE_SELF = 3, 1, 1, 1
+EFFECT_CREATE_ITEM, EFFECT_APPLY_AURA = 24, 6
+AURA_MOD_STAT, AURA_PERIODIC_TRIGGER_SPELL, AURA_MOD_POWER_REGEN, AURA_PERIODIC_DUMMY = 29, 23, 85, 226
+SKILL_LEARNED_ON_SKILL_VALUE = 1
 DUMMY_TEMPLATE = 54710                      # MOLL-E: a plain instant spell to start from
 LANG_MASK = 16712190                        # the enUS string plus the flags every stock row has
+DISPLAY_FIELDS, DISPLAY_ICON = 25, 5
+DRINK_CATEGORY_ID = 59
 FACTION_FIELDS, TITLE_FIELDS, IEC_FIELDS, CURRENCY_FIELDS, ITEM_FIELDS, SLA_FIELDS = 57, 37, 16, 4, 8, 14
 IDI_FIELDS, ICON_FIELDS = 25, 2
 F_RADIUS, F_ITEM_TYPE, F_MISC_B = 92, 107, 113
@@ -155,11 +168,13 @@ def add_spells(files):
             row[f] = 0
         return row
 
-    def finish(row, name, description):
+    def finish(row, name, description, aura_text=""):
         row[F_NAME] = add_string(strings, name)
         row[F_DESCRIPTION] = add_string(strings, description)
+        if aura_text:
+            row[F_AURA_TEXT] = add_string(strings, aura_text)
         put(spells, row)
-        made.append((row, name, description))
+        made.append((row, name, description, aura_text))
         print("Spell.dbc %d %s" % (row[0], name))
 
     for spell_id, name, description, icon in USE_SPELLS:
@@ -226,10 +241,111 @@ def add_spells(files):
             if old and old[2] != spell_id:
                 sys.exit("SkillLineAbility.dbc row %d is taken" % spell_id)
             put(abilities, [spell_id, skill, spell_id, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])
-            lines.append((spell_id, skill))
+            lines.append(next(a for a in abilities if a[0] == spell_id))
+
+    for r in recipes():
+        add_recipe_spells(r, by_id, icons, start, finish)
+        old = next((a for a in abilities if a[0] == r["craft"]), None)
+        if old and old[2] != r["craft"]:
+            sys.exit("SkillLineAbility.dbc row %d is taken" % r["craft"])
+        # MinSkillLineRank 1 and AcquireMethod 0, as Forever's and the stock vendor recipes': the recipe
+        # item asks for the skill. Trivial ranks: grey, then yellow.
+        row = [r["craft"], r["skill"], r["craft"], 0, 0, 0, 0, 1, 0, 0, r["grey"], r["yellow"], 0, 0]
+        put(abilities, row)
+        lines.append(row)
     write_dbc(path, spells, strings, fields)
     write_dbc(abilities_path, abilities, ability_strings, ability_fields)
     return made, lines
+
+
+def add_recipe_spells(r, by_id, icons, start, finish):
+    """A recipe's craft spell, and its product's use spells."""
+    craft = start(r["craft"], CRAFT_TEMPLATE[r["skill"]], r["product_name"])
+    for f in range(8):
+        item, count = r["reagents"][f] if f < len(r["reagents"]) else (0, 0)
+        craft[F_REAGENTS + f], craft[F_REAGENT_COUNTS + f] = item, count
+    if craft[F_EFFECT] != EFFECT_CREATE_ITEM:
+        sys.exit("craft template %d doesn't create an item" % CRAFT_TEMPLATE[r["skill"]])
+    craft[F_ITEM_TYPE] = r["product"]
+    craft[F_DIE_SIDES], craft[F_BASE_POINTS] = 1, r["made"] - 1
+    finish(craft, r["product_name"], "")
+
+    if not r["use"]:
+        return
+    kind, stock_drink, _stat_word, stat, amount = r["use"]
+    stock_drink, stat, amount = int(stock_drink), int(stat), int(amount)
+    drink_id, fed_id = r["use_spells"]
+    stock = by_id.get(stock_drink)
+    if not stock or stock[F_AURA + 1] != AURA_PERIODIC_DUMMY:
+        sys.exit("Spell.dbc %d isn't a stock drink with its amount in effect 2" % stock_drink)
+    seconds = {85: 18, 86: 21, 106: 24, 205: 27, 9: 30}.get(stock[F_DURATION])
+    if seconds is None:
+        sys.exit("drink %d: unknown duration index %d" % (stock_drink, stock[F_DURATION]))
+
+    # The drink: Brain Food's mana half with the stock drink's duration, levels and amount (per 5
+    # seconds), and its periodic trigger pointed at our Well Fed.
+    drink = start(drink_id, DRINK_TEMPLATE, "Nutritious Drink")
+    if drink[F_AURA] != AURA_MOD_POWER_REGEN or drink[F_AURA + 1] != AURA_PERIODIC_TRIGGER_SPELL:
+        sys.exit("drink template %d changed" % DRINK_TEMPLATE)
+    drink[F_CATEGORY] = DRINK_CATEGORY_ID
+    for f in F_LEVELS + (F_DURATION, F_VISUAL):       # the visual: drinking, not Brain Food's eating
+        drink[f] = stock[f]
+    drink[F_DIE_SIDES], drink[F_BASE_POINTS] = 1, stock[F_BASE_POINTS + 1]
+    drink[F_TRIGGER + 1] = fed_id
+    drink[F_ICON] = icons[DRINK_ICON]
+    finish(drink, "Nutritious Drink",
+           "Restores ${$m1/5*%d} mana over $d.  Must remain seated while drinking.  If you spend at least 10 "
+           "seconds drinking you will become well fed and gain $%ds1 %s for $%dd."
+           % (seconds, fed_id, STAT_NAMES[stat], fed_id),
+           "Restores $/5;s1 mana per second.")
+
+    # Well Fed: the stock one's buff (food-buff attribute, 15 minutes) with the stat in place of mana.
+    fed = start(fed_id, WELL_FED_TEMPLATE, "Well Fed")
+    if fed[F_AURA] != AURA_MOD_POWER_REGEN:
+        sys.exit("Well Fed template %d changed" % WELL_FED_TEMPLATE)
+    fed[F_AURA], fed[F_MISC] = AURA_MOD_STAT, stat
+    fed[F_DIE_SIDES], fed[F_BASE_POINTS] = 1, amount - 1
+    fed[F_ICON] = icons[WELL_FED_ICON]
+    finish(fed, "Well Fed", "A tasty drink has made you Well Fed, increasing your %s by $s1." % STAT_NAMES[stat],
+           "%s increased by $s1." % STAT_NAMES[stat])
+
+
+# --- ItemDisplayInfo.dbc ---------------------------------------------------------------------------
+
+def add_displays(files, client):
+    """Icon-only display rows for the recipes' icons the client has none for; checks the ones reused,
+    and with --client that every new one's icon file is in the client or the patch (else it shows as a
+    question mark): our client's icons include Project Reforged HD's."""
+    path = dbc_path(files, "ItemDisplayInfo")
+    rows, strings, fields = read_dbc(path)
+    if fields != DISPLAY_FIELDS:
+        sys.exit("ItemDisplayInfo.dbc has %d fields, not %d" % (fields, DISPLAY_FIELDS))
+    by_id = {r[0]: r for r in rows}
+    for icon, display in ICON_DISPLAYS.items():
+        r = by_id.get(display)
+        if not r or string_at(strings, r[DISPLAY_ICON]).lower() != icon:
+            sys.exit("ItemDisplayInfo.dbc %d isn't the icon %s" % (display, icon))
+    template = by_id.get(ICON_DISPLAY_TEMPLATE)
+    if not template or any(template[1:DISPLAY_ICON]):
+        sys.exit("ItemDisplayInfo.dbc %d isn't an icon-only row" % ICON_DISPLAY_TEMPLATE)
+    blps = {"Interface\\Icons\\%s.blp" % icon for _d, icon in new_displays()}
+    lacking = {b for b in blps if b.lower() not in {f.lower() for f in files}}
+    if client:
+        lacking = dbcmpq.client_has(client, lacking)
+    elif lacking:
+        print("not checked without --client: %s" % ", ".join(sorted(lacking)))
+        lacking = set()
+    if lacking:
+        sys.exit("no icon file for %s" % ", ".join(sorted(lacking)))
+    for display, icon in new_displays():
+        old = by_id.get(display)
+        if old and string_at(strings, old[DISPLAY_ICON]).lower() != icon:
+            sys.exit("ItemDisplayInfo.dbc row %d is taken" % display)
+        row = list(template)
+        row[0], row[DISPLAY_ICON] = display, add_string(strings, icon)
+        put(rows, row)
+        print("ItemDisplayInfo.dbc %d %s" % (display, icon))
+    write_dbc(path, rows, strings, fields)
 
 
 # --- Item.dbc ------------------------------------------------------------------------------------
@@ -372,17 +488,18 @@ def write_sql(path, spells, abilities, factions, titles, currency, costs):
     out = ["-- mod-supply-logistics: the rows the client also has. Generated by tools/build_patch.py from the",
            "-- same rows the client patch gets: run the tool again, don't edit this file.", ""]
     lines = []
-    for row, name, description in spells:
+    for row, name, description, aura_text in spells:
         values = [spell_value(i, v) for i, v in enumerate(row)]
         values[F_NAME], values[F_DESCRIPTION] = sql_str(name), sql_str(description)
+        values[F_AURA_TEXT] = sql_str(aura_text)
         lines.append("(" + ", ".join(values) + ")")
-    out.append("DELETE FROM `spell_dbc` WHERE `ID` IN (%s);" % ids(r[0] for r, _n, _d in spells))
+    out.append("DELETE FROM `spell_dbc` WHERE `ID` IN (%s);" % ids(r[0] for r, _n, _d, _a in spells))
     out.append("INSERT INTO `spell_dbc` VALUES\n" + ",\n".join(lines) + ";")
-    out.append("DELETE FROM `skilllineability_dbc` WHERE `ID` IN (%s);" % ids(s for s, _k in abilities))
+    out.append("DELETE FROM `skilllineability_dbc` WHERE `ID` IN (%s);" % ids(a[0] for a in abilities))
     out.append("INSERT INTO `skilllineability_dbc` (`ID`, `SkillLine`, `Spell`, `RaceMask`, `ClassMask`, `ExcludeRace`, "
                "`ExcludeClass`, `MinSkillLineRank`, `SupercededBySpell`, `AcquireMethod`, `TrivialSkillLineRankHigh`, "
                "`TrivialSkillLineRankLow`, `CharacterPoints_1`, `CharacterPoints_2`) VALUES\n"
-               + ",\n".join("(%d, %d, %d, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0)" % (s, k, s) for s, k in abilities) + ";")
+               + ",\n".join("(" + ", ".join(str(v) for v in a) + ")" for a in abilities) + ";")
     out.append("")
 
     def text_row(row, string_fields):
@@ -433,6 +550,7 @@ def main():
         spells, abilities = add_spells(files)
         add_items(files)
         add_item_displays(dbc_path(files, "ItemDisplayInfo"))
+        add_displays(files, args.client)
         factions = add_factions(need(files, "Faction", args.client, tmp))
         titles = add_titles(need(files, "CharTitles", args.client, tmp))
         currency = add_currency(need(files, "CurrencyTypes", args.client, tmp))

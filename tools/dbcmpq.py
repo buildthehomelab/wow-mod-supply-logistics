@@ -173,6 +173,29 @@ def client_file(client, locale, name, dst):
     sys.exit("no %s in %s's locale MPQs" % (name, folder))
 
 
+def client_has(client, names):
+    """The names (archive paths) that none of the archives the game loads holds: Data's common, expansion,
+    lichking and patch archives and the locale folders' own. Only this machine's client is read, so a
+    patch other players lack would still count."""
+    lib, H = stormlib()
+    missing = set(names)
+    data = os.path.join(client, "Data")
+    folders = [data] + [os.path.join(data, d) for d in sorted(os.listdir(data)) if os.path.isdir(os.path.join(data, d))]
+    for folder in folders:
+        for f in sorted(os.listdir(folder)):
+            low = f.lower()
+            if not missing or not low.endswith(".mpq") or not low.startswith(
+                    ("common", "expansion", "lichking", "patch", "locale-", "expansion-locale-", "lichking-locale-")):
+                continue
+            h = H()
+            if not lib.SFileOpenArchive(os.path.join(folder, f).encode(), 0, 0x100, ctypes.byref(h)):
+                print("can't open %s, skipped" % os.path.join(folder, f))
+                continue
+            missing = {n for n in missing if not lib.SFileHasFile(h, n.encode())}
+            lib.SFileCloseArchive(h)
+    return missing
+
+
 def pack(out, files):
     """files: [(local path, archive name)]. zlib-compressed, with listfile and attributes."""
     lib, H = stormlib()

@@ -102,8 +102,31 @@ minute; talk to it and pick one of your professions (Alchemy, Blacksmithing, Coo
 Engineering, Leatherworking or Tailoring), and that profession's sign stands there for half an hour.
 Only the one who put it up can choose, and a new sign takes your last one down.
 
-**Not yet:** the 316 recipes the profession vendors sell for Favor in Forever (the prices are already
-in the extended costs).
+### Recipes
+
+The camps sell Forever's own recipes for Favor, both camps the same, one profession at a time
+(`data/recipes.tsv`). A recipe is bound when you buy it, and a profession's dearer recipes need your
+side's trade faction: its cheapest tier needs nothing, the next Friendly, the rest Honored.
+
+**Cooking** (the chef): six smoothies, drinks that restore mana like the stock drink of their level
+and, after 10 seconds of drinking, make you Well Fed with Spirit for 15 minutes. The chef also
+sells Forever's two stock recipes for coin: Smoked Sagefish (5 silver) and Sagefish Delight (50 silver).
+
+| Recipe | Favor | Needs | Learn at | Made from | Drink | Well Fed |
+| --- | --- | --- | --- | --- | --- | --- |
+| Venomous Smoothie | 30 | | 25 | Refreshing Spring Water, Mild Spices, Small Venom Sac | level 1, 151 mana | 1 Spirit |
+| Slimy Smoothie | 30 | | 100 | Ice Cold Milk, 2 Mild Spices, Spider Ichor | level 5, 436 mana | 3 Spirit |
+| Mrrggl Smrrthle | 30 | | 125 | Melon Juice, 2 Hot Spices, Murloc Fin | level 15, 835 mana | 5 Spirit |
+| Calcified Smoothie | 60 | Friendly | 180 | Sweet Nectar, 3 Hot Spices, Large Fang | level 25, 1,344 mana | 10 Spirit |
+| Spicy Smoothie | 60 | Friendly | 200 | Moonberry Juice, 3 Soothing Spices, Small Flame Sac | level 35, 1,992 mana | 15 Spirit |
+| Wicked Smoothie | 90 | Honored | 250 | Morning Glory Dew, 4 Soothing Spices, Wicked Claw | level 45, 2,934 mana | 20 Spirit |
+
+Forever's tables put no reputation on the recipes themselves (its vendors gate them, in data that
+isn't public), so the ranks are ours, by price. A gated recipe is two items: Forever's for the Horde
+and a copy for the Alliance, since an item can ask for one faction only.
+
+**Not yet:** the other 310 recipes (Alchemy, Engineering, Enchanting, Blacksmithing, Tailoring and
+Leatherworking; the prices are already in the extended costs).
 
 ## Install
 
