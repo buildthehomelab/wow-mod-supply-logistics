@@ -457,14 +457,17 @@ INSERT INTO `mod_supply_logistics_quest` (`quest`, `rep`) VALUES
 (94360, 200);
 
 -- The text over the menus a Waylaid Crate, a Forged Delivery Receipt and a Forger's Quill open.
-DELETE FROM `npc_text` WHERE `ID` IN (9531100, 9531101, 9531102);
+DELETE FROM `npc_text` WHERE `ID` IN (9531100, 9531101, 9531102, 9531103, 9531104, 9531105);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `Probability0`, `VerifiedBuild`) VALUES
 (9531100, 'The label lists what the shipment should have held. Fill the crate with any one of these bundles and it''s sealed, ready for your faction''s trade camp.', 1, 0),
 (9531101, 'Which crate gets the forged receipt? It goes back to the trade camp empty.', 1, 0),
-(9531102, 'Which writ should be rewritten? A writ whose order you have accepted can''t be.', 1, 0);
+(9531102, 'Which writ should be rewritten? A writ whose order you have accepted can''t be.', 1, 0),
+(9531103, 'Open for business! Which of your trades should the sign advertise? It stands for half an hour.', 1, 0),
+(9531104, 'A fine signpost, and nothing to put on it: learn Alchemy, Blacksmithing, Cooking, Enchanting, Engineering, Leatherworking or Tailoring first.', 1, 0),
+(9531105, 'Someone else''s signpost. Their sign is theirs to choose.', 1, 0);
 
 -- The items: Forever's ids where Forever has them. Their client rows (icons) are build_patch.py's.
-DELETE FROM `item_template` WHERE `entry` IN (90740, 90741, 90742, 90743, 248682, 248683, 248684, 248685, 248686, 248687, 248688, 248689, 248690, 248691, 248692, 248693, 248694, 248695, 248696, 248697, 248698, 248699, 248702, 248703, 248704, 248705, 248706, 248707, 248708, 248709, 248710, 248711, 248712, 248713, 248765, 248766, 248767, 248768, 248769, 248770, 248771, 248772, 248773, 262766, 262887, 262888, 262889, 262890, 262896, 262902, 262917, 264011, 264012, 264013, 264014, 264015, 264016, 264017, 264018, 264019, 264020, 264021, 264022, 264023, 264024, 264025, 264026, 264027, 264028, 264029, 264030, 264031, 264032, 264033, 264034, 264035, 264036, 264037, 264038, 264039, 264040, 264041, 264042, 264043, 264044, 264045, 264046, 264047, 264048, 264049, 264050, 264051, 264052, 264053, 264054, 264055, 264056, 264057, 264058, 264059, 264060, 264061, 264062, 264063, 264064, 264065, 264066, 264067, 264068, 264069, 264070, 264071, 264072, 264073, 264074, 264075, 264076, 264077, 264078, 264079, 264080, 264081, 264082, 264083, 264084, 264085, 264086, 264087, 264088, 264089, 264090, 264091, 264092, 264093, 264094, 264095, 264096, 264097, 264098, 264099, 264100, 264101, 264102, 264103, 264104, 264105, 264106, 264107, 264108, 264109, 264110, 264111, 264112, 264113, 264114, 264115, 264116, 264117, 264118, 264119, 264120, 264121, 264122, 264123, 264125, 264126, 264127, 264128, 264129, 264130, 264131, 264132, 264133, 264134, 264135, 264136, 264137, 264138, 264139, 264140, 264141, 264142, 264143, 264144, 264145, 264146, 264147, 264148, 264149, 264150, 264151, 264152, 264153, 264154, 264155, 264156, 264157, 264158, 264159, 264160, 271621, 271622, 271624, 271625, 271626, 271627, 284664);
+DELETE FROM `item_template` WHERE `entry` IN (90740, 90741, 90742, 90743, 248682, 248683, 248684, 248685, 248686, 248687, 248688, 248689, 248690, 248691, 248692, 248693, 248694, 248695, 248696, 248697, 248698, 248699, 248702, 248703, 248704, 248705, 248706, 248707, 248708, 248709, 248710, 248711, 248712, 248713, 248765, 248766, 248767, 248768, 248769, 248770, 248771, 248772, 248773, 262764, 262765, 262766, 262887, 262888, 262889, 262890, 262896, 262902, 262917, 264011, 264012, 264013, 264014, 264015, 264016, 264017, 264018, 264019, 264020, 264021, 264022, 264023, 264024, 264025, 264026, 264027, 264028, 264029, 264030, 264031, 264032, 264033, 264034, 264035, 264036, 264037, 264038, 264039, 264040, 264041, 264042, 264043, 264044, 264045, 264046, 264047, 264048, 264049, 264050, 264051, 264052, 264053, 264054, 264055, 264056, 264057, 264058, 264059, 264060, 264061, 264062, 264063, 264064, 264065, 264066, 264067, 264068, 264069, 264070, 264071, 264072, 264073, 264074, 264075, 264076, 264077, 264078, 264079, 264080, 264081, 264082, 264083, 264084, 264085, 264086, 264087, 264088, 264089, 264090, 264091, 264092, 264093, 264094, 264095, 264096, 264097, 264098, 264099, 264100, 264101, 264102, 264103, 264104, 264105, 264106, 264107, 264108, 264109, 264110, 264111, 264112, 264113, 264114, 264115, 264116, 264117, 264118, 264119, 264120, 264121, 264122, 264123, 264125, 264126, 264127, 264128, 264129, 264130, 264131, 264132, 264133, 264134, 264135, 264136, 264137, 264138, 264139, 264140, 264141, 264142, 264143, 264144, 264145, 264146, 264147, 264148, 264149, 264150, 264151, 264152, 264153, 264154, 264155, 264156, 264157, 264158, 264159, 264160, 270868, 270870, 270887, 270888, 270896, 270897, 271621, 271622, 271624, 271625, 271626, 271627, 284664);
 INSERT INTO `item_template` (`entry`, `class`, `subclass`, `SoundOverrideSubclass`, `name`, `displayid`, `Quality`, `Flags`, `BuyCount`, `BuyPrice`, `SellPrice`, `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `RequiredSkill`, `RequiredSkillRank`, `RequiredReputationFaction`, `RequiredReputationRank`, `maxcount`, `stackable`, `spellid_1`, `spelltrigger_1`, `spellcharges_1`, `spellcooldown_1`, `spellcategorycooldown_1`, `spellid_2`, `spelltrigger_2`, `spellcooldown_2`, `spellcategorycooldown_2`, `bonding`, `description`, `startquest`, `Material`, `BagFamily`, `ScriptName`, `VerifiedBuild`) VALUES
 (90740, 10, 0, -1, 'Merchant''s Favor', 13849, 1, 2048, 1, 0, 0, 0, -1, -1, 1, 0, 0, 0, 0, 0, 0, 2147483647, 0, 0, 0, -1, -1, 0, 0, -1, -1, 1, 'Worth a considerable amount of gold, and so used as an interim currency among high-traffic merchant organizations.', 0, -1, 8192, '', 0),
 (248682, 15, 0, -1, 'Waylaid Crate: Apprentice Herbs', 67129, 1, 0, 1, 0, 0, 0, -1, -1, 10, 10, 0, 0, 0, 0, 0, 5, 90740, 0, 0, -1, -1, 0, 0, -1, -1, 0, 'Takes one bundle: 20 Peacebloom, 20 Silverleaf, 10 Earthroot, 10 Mageroyal or 10 Briarthorn.', 0, -1, 0, 'item_supply_waylaid_crate', 0),
@@ -669,18 +672,99 @@ INSERT INTO `item_template` (`entry`, `class`, `subclass`, `SoundOverrideSubclas
 (262766, 15, 5, -1, 'Reins of the Pack Kodo', 29447, 4, 0, 1, 0, 0, 0, -1, -1, 40, 40, 762, 150, 2587, 7, 0, 1, 55884, 0, 0, -1, -1, 90745, 6, -1, -1, 1, '', 0, -1, 0, '', 0),
 (90741, 15, 5, -1, 'Reins of the Pack Mule', 13108, 4, 0, 1, 0, 0, 0, -1, -1, 40, 40, 762, 150, 2586, 7, 0, 1, 55884, 0, 0, -1, -1, 90746, 6, -1, -1, 1, '', 0, -1, 0, '', 0),
 (284664, 15, 2, -1, 'Packmule Treat', 21115, 2, 0, 1, 0, 1250, 0, -1, -1, 1, 0, 0, 0, 2587, 6, 0, 1, 55884, 0, 0, -1, -1, 90747, 6, -1, -1, 1, '', 0, -1, 0, '', 0),
-(90742, 15, 2, -1, 'Packmule Treat', 21115, 2, 0, 1, 0, 1250, 0, -1, -1, 1, 0, 0, 0, 2586, 6, 0, 1, 55884, 0, 0, -1, -1, 90747, 6, -1, -1, 1, '', 0, -1, 0, '', 0);
+(90742, 15, 2, -1, 'Packmule Treat', 21115, 2, 0, 1, 0, 1250, 0, -1, -1, 1, 0, 0, 0, 2586, 6, 0, 1, 55884, 0, 0, -1, -1, 90747, 6, -1, -1, 1, '', 0, -1, 0, '', 0),
+(262764, 4, 0, -1, 'Durotar Supply and Logistics Tabard', 90750, 1, 0, 1, 50000, 12500, 19, -1, -1, 20, 0, 0, 0, 2587, 7, 1, 1, 0, 0, 0, -1, -1, 0, 0, -1, -1, 1, '', 0, 7, 0, '', 0),
+(262765, 4, 0, -1, 'Azeroth Commerce Authority Tabard', 90751, 1, 0, 1, 50000, 12500, 19, -1, -1, 20, 0, 0, 0, 2586, 7, 1, 1, 0, 0, 0, -1, -1, 0, 0, -1, -1, 1, '', 0, 7, 0, '', 0),
+(270887, 15, 4, -1, 'Advertising License Application', 90752, 3, 0, 1, 0, 0, 0, -1, -1, 1, 0, 0, 0, 2587, 5, 1, 1, 0, 0, 0, -1, -1, 0, 0, -1, -1, 1, 'Contains information and instructions as to how to acquire your very own Orcish Tradeskill Sign toy.', 95819, -1, 0, '', 0),
+(270888, 15, 4, -1, 'Advertising License Application', 90753, 3, 0, 1, 0, 0, 0, -1, -1, 1, 0, 0, 0, 2586, 5, 1, 1, 0, 0, 0, -1, -1, 0, 0, -1, -1, 1, 'Contains information and instructions as to how to acquire your very own Dwarven Tradeskill Sign toy.', 95816, -1, 0, '', 0),
+(270896, 12, 0, -1, 'Massive Pile of Forms', 3019, 1, 0, 1, 0, 0, 0, -1, -1, 1, 0, 0, 0, 0, 0, 1, 1, 90748, 0, -1, -1, -1, 0, 0, -1, -1, 4, '', 0, -1, 0, '', 0),
+(270897, 12, 0, -1, 'Massive Pile of Completed Forms', 3019, 1, 0, 1, 0, 0, 0, -1, -1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, -1, -1, 0, 0, -1, -1, 4, '', 0, -1, 0, '', 0),
+(270870, 15, 0, -1, 'Orcish Tradeskill Signpost', 90754, 3, 0, 1, 0, 0, 0, -1, -1, 1, 0, 0, 0, 0, 0, 0, 1, 90749, 0, 0, -1, -1, 0, 0, -1, -1, 1, 'Open for business!', 0, -1, 0, '', 0),
+(270868, 15, 0, -1, 'Dwarven Tradeskill Signpost', 90755, 3, 0, 1, 0, 0, 0, -1, -1, 1, 0, 0, 0, 0, 0, 0, 1, 90750, 0, 0, -1, -1, 0, 0, -1, -1, 1, 'Open for business!', 0, -1, 0, '', 0);
 
--- The Minimule (Packmule Treat's companion) and the Pack Mule mount's look. The Pack Kodo mount
--- rides stock creature 10636's look.
-DELETE FROM `creature_template_model` WHERE `CreatureID` IN (9531100, 9531101);
-DELETE FROM `creature_template` WHERE `entry` IN (9531100, 9531101);
-INSERT INTO `creature_template` (`entry`, `name`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`, `movementId`, `VerifiedBuild`) VALUES
-(9531100, 'Minimule', 1, 1, 188, 0, 1, 1.14286, 1, 768, 2048, 12, 2, 121, 0),
-(9531101, 'Pack Mule', 1, 1, 35, 0, 1, 1.14286, 1, 768, 2048, 1, 2, 0, 0);
+-- The Minimule (Packmule Treat's companion), the Pack Mule and Pack Kodo mounts' looks, and the signpost toys'
+-- posts and signs (the posts are summoned by the toys' spells; the module puts the signs up). Their displays
+-- are Forever's models (data/looks.tsv, mod_supply_logistics_art.sql).
+DELETE FROM `creature_template_model` WHERE `CreatureID` IN (262713, 262718, 262720, 262721, 262722, 262723, 262724, 262725, 262727, 262728, 262729, 262730, 262731, 262732, 262733, 262734, 9531100, 9531101, 9531102, 9531103, 9531104, 9531105, 9531106, 9531107, 9531108, 9531109);
+DELETE FROM `creature_template_movement` WHERE `CreatureId` IN (262713, 262718, 262720, 262721, 262722, 262723, 262724, 262725, 262727, 262728, 262729, 262730, 262731, 262732, 262733, 262734, 9531100, 9531101, 9531102, 9531103, 9531104, 9531105, 9531106, 9531107, 9531108, 9531109);
+DELETE FROM `creature_template` WHERE `entry` IN (262713, 262718, 262720, 262721, 262722, 262723, 262724, 262725, 262727, 262728, 262729, 262730, 262731, 262732, 262733, 262734, 9531100, 9531101, 9531102, 9531103, 9531104, 9531105, 9531106, 9531107, 9531108, 9531109);
+INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`, `movementId`, `ScriptName`, `VerifiedBuild`) VALUES
+(9531100, 'Minimule', '', 1, 1, 188, 0, 1, 1.14286, 1, 768, 2048, 12, 2, 121, '', 0),
+(9531101, 'Pack Mule', '', 1, 1, 35, 0, 1, 1.14286, 1, 768, 2048, 1, 2, 0, '', 0),
+(9531102, 'Pack Kodo', '', 1, 1, 35, 0, 1, 1.14286, 1, 768, 2048, 1, 2, 0, '', 0),
+(262713, 'Orcish Tradeskill Signpost', '', 1, 1, 35, 1, 1, 1.14286, 1, 770, 2048, 10, 2, 0, 'npc_supply_signpost', 0),
+(262727, 'Dwarven Tradeskill Signpost', '', 1, 1, 35, 1, 1, 1.14286, 1, 770, 2048, 10, 2, 0, 'npc_supply_signpost', 0),
+(262718, 'Alchemy', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262728, 'Alchemy', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(9531103, 'Alchemy', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262720, 'Blacksmithing', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262729, 'Blacksmithing', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(9531104, 'Blacksmithing', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262721, 'Cooking', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262730, 'Cooking', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(9531105, 'Cooking', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262722, 'Enchanting', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262731, 'Enchanting', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(9531106, 'Enchanting', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262723, 'Engineering', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262732, 'Engineering', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(9531107, 'Engineering', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262724, 'Leatherworking', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262733, 'Leatherworking', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(9531108, 'Leatherworking', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262725, 'Tailoring', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(262734, 'Tailoring', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0),
+(9531109, 'Tailoring', '', 1, 1, 35, 0, 1, 1.14286, 1, 33555202, 2048, 10, 2, 0, '', 0);
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) VALUES
-(9531100, 0, 14551, 0.4, 1, 0),
-(9531101, 0, 14551, 1, 1, 0);
+(9531100, 0, 95311, 1, 1, 0),
+(9531101, 0, 95312, 1, 1, 0),
+(9531102, 0, 95310, 1, 1, 0),
+(262713, 0, 95313, 1, 1, 0),
+(262727, 0, 95321, 1, 1, 0),
+(262718, 0, 95314, 1, 1, 0),
+(262728, 0, 95321, 1, 1, 0),
+(9531103, 0, 95322, 1, 1, 0),
+(262720, 0, 95315, 1, 1, 0),
+(262729, 0, 95321, 1, 1, 0),
+(9531104, 0, 95323, 1, 1, 0),
+(262721, 0, 95316, 1, 1, 0),
+(262730, 0, 95321, 1, 1, 0),
+(9531105, 0, 95324, 1, 1, 0),
+(262722, 0, 95317, 1, 1, 0),
+(262731, 0, 95321, 1, 1, 0),
+(9531106, 0, 95325, 1, 1, 0),
+(262723, 0, 95318, 1, 1, 0),
+(262732, 0, 95321, 1, 1, 0),
+(9531107, 0, 95326, 1, 1, 0),
+(262724, 0, 95319, 1, 1, 0),
+(262733, 0, 95321, 1, 1, 0),
+(9531108, 0, 95327, 1, 1, 0),
+(262725, 0, 95320, 1, 1, 0),
+(262734, 0, 95321, 1, 1, 0),
+(9531109, 0, 95328, 1, 1, 0);
+-- The signs don't move (the posts turn to whoever put them up).
+INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES
+(262718, 1, 0, 0, 1, 0, 0),
+(262728, 1, 0, 0, 1, 0, 0),
+(9531103, 1, 0, 0, 1, 0, 0),
+(262720, 1, 0, 0, 1, 0, 0),
+(262729, 1, 0, 0, 1, 0, 0),
+(9531104, 1, 0, 0, 1, 0, 0),
+(262721, 1, 0, 0, 1, 0, 0),
+(262730, 1, 0, 0, 1, 0, 0),
+(9531105, 1, 0, 0, 1, 0, 0),
+(262722, 1, 0, 0, 1, 0, 0),
+(262731, 1, 0, 0, 1, 0, 0),
+(9531106, 1, 0, 0, 1, 0, 0),
+(262723, 1, 0, 0, 1, 0, 0),
+(262732, 1, 0, 0, 1, 0, 0),
+(9531107, 1, 0, 0, 1, 0, 0),
+(262724, 1, 0, 0, 1, 0, 0),
+(262733, 1, 0, 0, 1, 0, 0),
+(9531108, 1, 0, 0, 1, 0, 0),
+(262725, 1, 0, 0, 1, 0, 0),
+(262734, 1, 0, 0, 1, 0, 0),
+(9531109, 1, 0, 0, 1, 0, 0);
 
 -- The quests: Forever's ids. A Sealed crate, an empty container or a writ with its goods, handed
 -- in for Merchant's Favor. All repeatable; the module pays the reputation.
@@ -1317,6 +1401,29 @@ INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`)
 (94359, 4, 'Exactly what the customer asked for. Here''s your payment.', 0),
 (94360, 4, 'Exactly what the customer asked for. Here''s your payment.', 0);
 
+-- "Sign Me Up!" (Forever's ids): the Advertising License Application starts it and hands over the forms.
+-- Sign them (use the pile), then bring both to the Contract Coordinator for the signpost toy.
+DELETE FROM `quest_template` WHERE `ID` IN (95816, 95819);
+INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `QuestInfoID`, `Flags`, `AllowableRaces`, `StartItem`, `RequiredItemId1`, `RequiredItemCount1`, `RequiredItemId2`, `RequiredItemCount2`, `RewardItem1`, `RewardAmount1`, `LogTitle`, `LogDescription`, `QuestDescription`, `QuestCompletionLog`, `VerifiedBuild`) VALUES
+(95819, 2, -1, 10, 17, 0, 0, 690, 270896, 270887, 1, 270897, 1, 270870, 1, 'Sign Me Up!', 'Bring the completed form to Jornah in The Barrens.', 'Greetings, accomplished craftsperson!$B$BCompletion of this form will grant you non-exclusive, revocable, and legally limited permission to display advertisement signs for your tradeskill(s) all across Azeroth!$B$BOnce completed, please bring this to your local Durotar Supply & Logistics Contract Coordinator to begin processing.$B$BHappy crafting!', 'Return to Jornah in The Barrens.', 0),
+(95816, 2, -1, 10, 44, 0, 0, 1101, 270896, 270888, 1, 270897, 1, 270868, 1, 'Sign Me Up!', 'Bring the completed form to Elaine Compton in Redridge Mountains.', 'Greetings, accomplished craftsperson!$B$BCompletion of this form will grant you non-exclusive, revocable, and legally limited permission to display advertisement signs for your tradeskill(s) all across Azeroth!$B$BOnce completed, please bring this to your local Azeroth Commerce Authority branch''s Contract Coordinator to begin processing.$B$BHappy crafting!', 'Return to Elaine Compton in Redridge Mountains.', 0);
+DELETE FROM `quest_template_addon` WHERE `ID` IN (95816, 95819);
+INSERT INTO `quest_template_addon` (`ID`, `ProvidedItemCount`) VALUES
+(95816, 1),
+(95819, 1);
+DELETE FROM `quest_request_items` WHERE `ID` IN (95816, 95819);
+INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`, `VerifiedBuild`) VALUES
+(95816, 1, 1, 'Every page signed? Initialed, dated, stamped? Let me see.', 0),
+(95819, 1, 1, 'Every page signed? Initialed, dated, stamped? Let me see.', 0);
+DELETE FROM `quest_offer_reward` WHERE `ID` IN (95816, 95819);
+INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
+(95816, 4, 'All in order. Your license is approved, and here is your signpost. Put it up wherever you do business, and pick the trade it shows.$B$BHappy crafting!', 0),
+(95819, 4, 'All in order. Your license is approved, and here is your signpost. Put it up wherever you do business, and pick the trade it shows.$B$BHappy crafting!', 0);
+DELETE FROM `creature_questender` WHERE `quest` IN (95816, 95819);
+INSERT INTO `creature_questender` (`id`, `quest`) VALUES
+(256388, 95819),
+(256391, 95816);
+
 -- Each hand-in is offered only while you carry its crate (source type 19, quest available;
 -- condition 2, item), so the Inventory Intake doesn't list all ten at once.
 DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (91899, 91900, 91901, 91902, 91903, 91904, 91905, 91906, 91907, 93862);
@@ -1671,10 +1778,12 @@ INSERT INTO `creature_questender` (`id`, `quest`) VALUES
 (256391, 94360);
 
 -- What they sell, priced in Merchant's Favor (ItemExtendedCost, see mod_supply_logistics_dbc.sql).
--- The recipes come later. Tabards and the shop-sign toy wait for their art.
+-- The recipes come later.
 DELETE FROM `npc_vendor` WHERE `entry` IN (248196, 248197, 248198, 248199, 248200, 248201, 248202, 256384, 256389, 256400, 256672, 256729, 256730, 256731, 256732, 256733, 256734, 256735, 256736, 256742);
 INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `VerifiedBuild`) VALUES
 (256384, 0, 284664, 0, 0, 90753, 0),
+(256384, 1, 270887, 0, 0, 90752, 0),
+(256384, 2, 262764, 0, 0, 90747, 0),
 (256400, 0, 262766, 0, 0, 90754, 0),
 (256672, 0, 262896, 0, 0, 90740, 0),
 (256672, 1, 262902, 0, 0, 90740, 0),
@@ -1694,6 +1803,8 @@ INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `Exte
 (248198, 7, 10284, 0, 0, 0, 0),
 (248198, 8, 11291, 0, 0, 0, 0),
 (256389, 0, 90742, 0, 0, 90753, 0),
+(256389, 1, 270888, 0, 0, 90752, 0),
+(256389, 2, 262765, 0, 0, 90747, 0),
 (256736, 0, 90741, 0, 0, 90754, 0),
 (256742, 0, 90743, 0, 0, 90740, 0),
 (256742, 1, 262902, 0, 0, 90740, 0),
@@ -1714,7 +1825,7 @@ INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `Exte
 (256731, 8, 11291, 0, 0, 0, 0);
 -- A Certification is sold only to those with 300 skill (source type 23, vendor item; condition 7,
 -- skill): the vendor checks reputation but not skill.
-DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` IN (248196, 248197, 248199, 248200, 248201, 248202, 256729, 256730, 256732, 256733, 256734, 256735);
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` IN (248196, 248197, 248199, 248200, 248201, 248202, 256384, 256389, 256729, 256730, 256732, 256733, 256734, 256735);
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
 (23, 248196, 271621, 0, 0, 7, 0, 171, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
 (23, 248197, 271622, 0, 0, 7, 0, 164, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
@@ -1727,4 +1838,7 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 (23, 256732, 271624, 0, 0, 7, 0, 333, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
 (23, 256733, 271625, 0, 0, 7, 0, 202, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
 (23, 256734, 271626, 0, 0, 7, 0, 165, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
-(23, 256735, 271627, 0, 0, 7, 0, 197, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill');
+(23, 256735, 271627, 0, 0, 7, 0, 197, 300, 0, 0, 0, 0, '', 'mod-supply-logistics: 300 skill'),
+-- The Advertising License Application is sold until "Sign Me Up!" is done (condition 8, quest rewarded, negated).
+(23, 256384, 270887, 0, 0, 8, 0, 95819, 0, 0, 1, 0, 0, '', 'mod-supply-logistics: license not yet used'),
+(23, 256389, 270888, 0, 0, 8, 0, 95816, 0, 0, 1, 0, 0, '', 'mod-supply-logistics: license not yet used');

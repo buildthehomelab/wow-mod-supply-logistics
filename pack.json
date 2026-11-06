@@ -1,0 +1,12 @@
+{
+  "looks": "data/looks.tsv",
+  "root": "Creature\\SupplyLogistics",
+  "first_display": 95310,
+  "first_model": 95310,
+  "transmog": false,
+  "prune_textures": true,
+  "effects": true,
+  "template": {"kodo": 12246, "mule": 14546, "sign": 30297},
+  "model_info": {"kodo": [1.2, 2], "mule": [0.5, 1]},
+  "source": "buildthehomelab/wow-mod-supply-logistics data/looks.tsv: WoW Forever's own models (build 1.60.1.70790), built by tools/build_art.py."
+}

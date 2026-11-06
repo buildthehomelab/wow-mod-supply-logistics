@@ -1,9 +1,11 @@
 """Everything mod-supply-logistics adds, in one place: build_data.py writes the server's rows from it
 and build_patch.py the client's, so the two can't disagree.
 
-Ids: Forever's own where Forever has the thing (items, quests, factions, its currency 3402). Ours:
-items, spells and extended costs 90740-90759 (the Favor item and the Alliance copies), creatures and
-npc_text 9531100-9531199 (the Minimule, the mule mount, the menus), titles 193-198 (bits 158-163).
+Ids: Forever's own where Forever has the thing (items, quests, creatures, factions, its currency 3402).
+Ours: items, spells, spell icons, item displays and extended costs 90740-90759 (the Favor item, the
+Alliance copies), creatures and npc_text 9531100-9531199 (the mule, the mounts' looks, the dwarven sign
+boards, the menus), creature displays and models 95310-95339 (data/looks.tsv, the art), titles 193-198
+(bits 158-163).
 
 Released under the MIT License.
 """
@@ -13,8 +15,9 @@ import os
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 
-# The npc_text of the item menus (crate, receipt, quill).
+# The npc_text of the item menus (crate, receipt, quill) and of the signpost toy's menu.
 TEXT_CRATE, TEXT_RECEIPT, TEXT_QUILL = 9531100, 9531101, 9531102
+TEXT_SIGNPOST, TEXT_SIGNPOST_NONE, TEXT_SIGNPOST_NOT_YOURS = 9531103, 9531104, 9531105
 
 # --- Factions --------------------------------------------------------------------------------------
 
@@ -38,6 +41,7 @@ CURRENCY_ID, CURRENCY_BIT, CURRENCY_CATEGORY = 3402, 33, 4   # Forever's id; cat
 
 SPELL_FILL, SPELL_OPEN_WRIT, SPELL_CERTIFY, SPELL_RECEIPT, SPELL_QUILL = 90740, 90741, 90742, 90743, 90744
 SPELL_PACK_KODO, SPELL_PACK_MULE, SPELL_MINIMULE = 90745, 90746, 90747
+SPELL_SIGN_FORM, SPELL_SIGNPOSTS = 90748, (90749, 90750)    # the forms; the Orcish and Dwarven toys
 LEARN = 55884                                     # the stock "learn this companion or mount" trigger
 
 # The use spells: a dummy on yourself. The module's item scripts do the work and the spell is never
@@ -56,13 +60,24 @@ USE_SPELLS = [
 ]
 # (spell, template, creature the effect summons or mounts, name, description, spell icon template)
 MOUNT_SPELLS = [
-    (SPELL_PACK_KODO, 23249, 10636, "Pack Kodo", "Summons and dismisses a rideable pack kodo. This is a very fast mount.", 23249),
+    (SPELL_PACK_KODO, 23249, 9531102, "Pack Kodo", "Summons and dismisses a rideable pack kodo. This is a very fast mount.", 23249),
     (SPELL_PACK_MULE, 23229, 9531101, "Pack Mule", "Summons and dismisses a rideable pack mule. This is a very fast mount.", 23229),
 ]
 PET_SPELLS = [
     (SPELL_MINIMULE, 28739, 9531100, "Minimule", "Right Click to summon and dismiss your Minimule.", 28739),
 ]
 SKILL_MOUNTS, SKILL_COMPANIONS = 777, 778
+
+# Spell icons the client lacks, as SpellIcon.dbc rows: (id, the icon's name under Interface\\Icons).
+SPELL_ICONS = [(90748, "INV_Letter_03"), (90749, "Trade_Archaeology_Orc_BloodText")]
+# The Advertising License's forms: a 10 second cast (SpellCastTimes 7, Forever's) that turns the pile
+# of forms into the completed ones. Copies Attach Medallion to Shaft, a plain create-item cast.
+FORM_TEMPLATE, FORM_CAST_TIME = 9594, 7
+# The signpost toys: summon the post in front of you for a minute (SpellDuration 3), a 1 second cast
+# (SpellCastTimes 4), 30 minutes' cooldown, as Forever's. SummonProperties 64 is a plain timed summon,
+# owned by whoever cast it; the spell's radius (SpellRadius 7, 2 yards) is how far in front.
+SIGNPOST_CAST_TIME, SIGNPOST_DURATION, SIGNPOST_RADIUS, SIGNPOST_COOLDOWN = 4, 3, 7, 1800000
+SUMMON_WILD, TARGET_DEST_CASTER_FRONT = 64, 47
 
 # --- Prices ----------------------------------------------------------------------------------------
 
@@ -130,6 +145,70 @@ REINS = (262766, 90741)
 TREATS = (284664, 90742)
 MINIMULE = 9531100                                 # creature
 MULE_MOUNT = 9531101                               # creature: the Pack Mule mount's one look
+PACK_KODO = 9531102                                # creature: the Pack Kodo mount's one look
+
+# --- Tabards and the signpost toy ------------------------------------------------------------------
+
+TABARDS = (262764, 262765)              # Horde, Alliance: Exalted, at the Supply Officer
+LICENSES = (270887, 270888)             # Advertising License Application: Honored, at the Supply Officer
+LICENSE_QUESTS = (95819, 95816)         # "Sign Me Up!": the application starts it, the Contract Coordinator ends it
+FORMS, COMPLETED_FORMS = 270896, 270897
+SIGNPOST_TOYS = (270870, 270868)        # Orcish Tradeskill Signpost (Horde), Dwarven (Alliance)
+SIGNPOSTS = (262713, 262727)            # creatures: the post a toy puts up for a minute
+# The professions a sign can advertise: (skill, Orcish sign, Dwarven sign, the Dwarven sign's board).
+# Forever's creatures; the boards are ours (Forever hangs them on the post with a spell visual kit).
+SIGNS = [
+    (171, 262718, 262728, 9531103),     # Alchemy
+    (164, 262720, 262729, 9531104),     # Blacksmithing
+    (185, 262721, 262730, 9531105),     # Cooking
+    (333, 262722, 262731, 9531106),     # Enchanting
+    (202, 262723, 262732, 9531107),     # Engineering
+    (165, 262724, 262733, 9531108),     # Leatherworking
+    (197, 262725, 262734, 9531109),     # Tailoring
+]
+SIGN_SECONDS = 1800                     # a chosen sign stands half an hour, as Forever's
+# Where Forever hangs a Dwarven board on its post: (forward, left, up) in yards, turned a quarter left.
+BOARD_OFFSET, BOARD_TURN = (0.0, 1.0, 0.04), 1.5707964
+
+# Creature displays (data/looks.tsv; tools/build_art.py converts Forever's models into them).
+LOOK = {"pack_kodo": 95310, "minimule": 95311, "pack_mule": 95312, "orc_post": 95313, "dwarf_post": 95321}
+ORC_SIGN_LOOKS, DWARF_BOARD_LOOKS = 95314, 95322           # then one per SIGNS row, in its order
+
+# Item displays the client lacks: (id, icon, {ItemDisplayInfo texture field: name}, geoset group, sound).
+# The tabards' textures are Forever's: torso upper, torso lower, and the belt over the legs.
+TU, TL, LU = 18, 19, 20
+ITEM_DISPLAYS = [
+    (90750, "INV_Tabard_MerchantHordeC60", {TU: "Tabard_MerchantHordeC60_TU", TL: "Tabard_MerchantHordeC60_TL",
+                                            LU: "Tabard_MerchantHordeC60_LU"}, 1, 7),
+    (90751, "INV_Tabard_MerchantAllianceC60", {TU: "Tabard_MerchantAllianceC60_TU",
+                                               TL: "Tabard_MerchantAllianceC60_TL",
+                                               LU: "Tabard_MerchantAllianceC60_LU"}, 1, 7),
+    (90752, "INV_Misc_NoteScript2a", {}, 0, 0),
+    (90753, "INV_Misc_NoteScript2b", {}, 0, 0),
+    (90754, "Trade_Archaeology_Orc_BloodText", {}, 0, 0),
+    (90755, "INV_Shield_1H_Ironforge_C_01", {}, 0, 0),
+]
+# Forever's files behind them (file ids in its build 1.60.1.70790), for tools/build_art.py. An icon
+# the client already has is left out of the patch.
+SECTION_FOLDERS = {TU: "TorsoUpperTexture", TL: "TorsoLowerTexture", LU: "LegUpperTexture"}
+ART_TEXTURES = {
+    "Tabard_MerchantHordeC60_TU": 7941400, "Tabard_MerchantHordeC60_TL": 7941399,
+    "Tabard_MerchantHordeC60_LU": 7941398, "Tabard_MerchantAllianceC60_TU": 7941107,
+    "Tabard_MerchantAllianceC60_TL": 7941106, "Tabard_MerchantAllianceC60_LU": 7941105,
+}
+ART_ICONS = {
+    "INV_Tabard_MerchantHordeC60": 7941397, "INV_Tabard_MerchantAllianceC60": 7941108,
+    "INV_Misc_NoteScript2a": 1505958, "INV_Misc_NoteScript2b": 1505959,
+    "Trade_Archaeology_Orc_BloodText": 441148, "INV_Shield_1H_Ironforge_C_01": 4882765, "INV_Letter_03": 133459,
+}
+
+
+def art_files():
+    """{file name in the client: Forever's file id}: the tabards' textures and every icon above."""
+    out = {"Item\\TextureComponents\\%s\\%s_U.blp" % (SECTION_FOLDERS[field], name): ART_TEXTURES[name]
+           for _id, _icon, textures, _g, _s in ITEM_DISPLAYS for field, name in textures.items()}
+    out.update({"Interface\\Icons\\%s.blp" % icon: fd for icon, fd in ART_ICONS.items()})
+    return out
 
 # Item display ids (ItemDisplayInfo) whose icon matches Forever's, or the nearest the client has.
 DISPLAY = {
@@ -147,6 +226,10 @@ DISPLAY = {
     "treat": 21115,                 # inv_misc_food_54
     "reins_kodo": 29447,            # ability_mount_kodo_03
     "reins_mule": 13108,            # ability_mount_ridinghorse
+    "tabard_horde": 90750, "tabard_alliance": 90751,
+    "license_horde": 90752, "license_alliance": 90753,
+    "forms": 3019,                  # inv_letter_03, Forever's
+    "toy_orc": 90754, "toy_dwarf": 90755,
 }
 
 
@@ -194,7 +277,7 @@ def items():
         row = dict(entry=entry, name=name, cls=cls, subclass=subclass, display=display, quality=quality,
                    stackable=1, bonding=0, description="", spell=0, trigger=0, spell2=0, trigger2=0,
                    level=0, skill=0, skill_rank=0, rep_faction=0, rep_rank=0, startquest=0, script="",
-                   bag_family=0, flags=0, maxcount=0, material=-1, sell=0)
+                   bag_family=0, flags=0, maxcount=0, material=-1, sell=0, buy=0, inv_type=0, item_level=0, charges=0)
         row.update(kw)
         out.append(row)
 
@@ -249,4 +332,28 @@ def items():
     for faction, item in zip((HORDE, ALLIANCE), TREATS):
         add(item, "Packmule Treat", 15, 2, DISPLAY["treat"], 2, bonding=1, rep_faction=faction, rep_rank=REVERED,
             spell=LEARN, spell2=SPELL_MINIMULE, trigger2=6, sell=1250)
+
+    # Forever's tabards: cloth, unique, item level 20.
+    for faction, item, name, display in (
+            (HORDE, TABARDS[0], "Durotar Supply and Logistics Tabard", DISPLAY["tabard_horde"]),
+            (ALLIANCE, TABARDS[1], "Azeroth Commerce Authority Tabard", DISPLAY["tabard_alliance"])):
+        add(item, name, 4, 0, display, 1, bonding=1, rep_faction=faction, rep_rank=EXALTED, maxcount=1,
+            inv_type=19, material=7, buy=50000, sell=12500, item_level=20)
+    # The Advertising License: the application starts "Sign Me Up!" and is handed in with the completed
+    # forms (a required item with a max count, so taking the quest keeps it).
+    for faction, item, quest, toy, display in (
+            (HORDE, LICENSES[0], LICENSE_QUESTS[0], "Orcish", DISPLAY["license_horde"]),
+            (ALLIANCE, LICENSES[1], LICENSE_QUESTS[1], "Dwarven", DISPLAY["license_alliance"])):
+        add(item, "Advertising License Application", 15, 4, display, 3, bonding=1, rep_faction=faction,
+            rep_rank=HONORED, startquest=quest, maxcount=1,
+            description="Contains information and instructions as to how to acquire your very own %s "
+                        "Tradeskill Sign toy." % toy)
+    add(FORMS, "Massive Pile of Forms", 12, 0, DISPLAY["forms"], 1, bonding=4, maxcount=1, spell=SPELL_SIGN_FORM,
+        charges=-1)
+    add(COMPLETED_FORMS, "Massive Pile of Completed Forms", 12, 0, DISPLAY["forms"], 1, bonding=4, maxcount=1)
+    # The toys: kept in the bags (the client has no toy box), used on a 30 minute cooldown.
+    for item, spell, name, display in (
+            (SIGNPOST_TOYS[0], SPELL_SIGNPOSTS[0], "Orcish Tradeskill Signpost", DISPLAY["toy_orc"]),
+            (SIGNPOST_TOYS[1], SPELL_SIGNPOSTS[1], "Dwarven Tradeskill Signpost", DISPLAY["toy_dwarf"])):
+        add(item, name, 15, 0, display, 3, bonding=1, spell=spell, description="Open for business!")
     return out

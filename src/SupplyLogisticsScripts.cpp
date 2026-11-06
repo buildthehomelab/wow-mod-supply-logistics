@@ -15,6 +15,8 @@
 
 using namespace SupplyLogistics;
 
+void AddSupplyLogisticsSignScripts();
+
 namespace
 {
     // Every use spell of the module is a dummy the client needs; returning true here means it is
@@ -187,4 +189,5 @@ void AddSupplyLogisticsScripts()
     new SupplyLogisticsPlayerScript();
     new SupplyLogisticsCreatureScript();
     new SupplyLogisticsWorldScript();
+    AddSupplyLogisticsSignScripts();
 }
