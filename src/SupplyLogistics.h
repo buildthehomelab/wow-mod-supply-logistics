@@ -21,9 +21,12 @@
 
 class Creature;
 class Item;
+class LootStore;
+class LootTemplate;
 class Player;
 class Quest;
 class Unit;
+struct Loot;
 
 namespace SupplyLogistics
 {
@@ -120,6 +123,14 @@ namespace SupplyLogistics
     void LoadConfig();
     void LoadData();
     bool Enabled();
+
+    // --- Scarce materials (SupplyLogisticsScarce.cpp) -------------------------------------------
+
+    void LoadScarceConfig();
+    // Maps the gathering nodes' and skinned creatures' loot tables to their materials (after loot loads).
+    void LoadScarce();
+    // A loot was just filled from `tab`: a real player's gathering or skinning may bring a material.
+    void OnLootFilled(Loot* loot, LootTemplate const* tab, LootStore const& store, Player* owner);
 
     Crate const* GetCrate(uint32 item);
     Writ const* GetWrit(uint32 item);

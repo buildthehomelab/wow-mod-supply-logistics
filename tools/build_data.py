@@ -12,7 +12,8 @@ Released under the MIT License.
 import os
 
 from catalog import (CHEF_RECIPES, SKILL_COOKING, PROC_FLAG_TAKEN_PERIODIC, PROC_SPELL_TYPE_DAMAGE,
-                     cone_degrees, no_bonus_spells, proc_spells, script_names, spell_groups, recipe_vendor_items, recipes, COMPLETED_FORMS, FORMS, LICENSE_QUESTS, LICENSES, LOOK, ORC_SIGN_LOOKS, DWARF_BOARD_LOOKS, PACK_KODO,
+                     cone_degrees, material_crafts, no_bonus_spells, proc_spells, scarce_sources, script_names,
+                     spell_groups, recipe_vendor_items, recipes, COMPLETED_FORMS, FORMS, LICENSE_QUESTS, LICENSES, LOOK, ORC_SIGN_LOOKS, DWARF_BOARD_LOOKS, PACK_KODO,
                      SIGNPOSTS, SIGNPOST_TOYS, SIGNS, SPELL_SIGNPOSTS, SPELL_SIGN_FORM, TABARDS, TEXT_SIGNPOST, TEXT_SIGNPOST_NONE,
                      TEXT_SIGNPOST_NOT_YOURS, COSTS, CURRENCY_ID, FACTIONS, MOUNT_SPELLS, PET_SPELLS, USE_SPELLS, KINDS, TEXT_CRATE, TEXT_QUILL, TEXT_RECEIPT, CHEF_GOODS, CONTAINER, COST_ID, CRATE_RETURN, FAVOR, MINIMULE, MULE_MOUNT, NPC, PROFESSION_VENDORS, QUILLS,
                      RECEIPT, RECEIPT_REP, REINS, RETIRED_WRITS, SEALED, TIER_NAMES, TITLES, TREATS, WRIT_FAVOR, bundles, crates,
@@ -71,6 +72,10 @@ def main():
     w("CREATE TABLE IF NOT EXISTS `mod_supply_logistics_quest` (")
     w("  `quest` INT UNSIGNED NOT NULL, `rep` INT UNSIGNED NOT NULL, PRIMARY KEY (`quest`))")
     w("  ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
+    w("CREATE TABLE IF NOT EXISTS `mod_supply_logistics_scarce` (")
+    w("  `item` INT UNSIGNED NOT NULL, `kind` TINYINT UNSIGNED NOT NULL, `node` VARCHAR(100) NOT NULL,")
+    w("  `min_level` TINYINT UNSIGNED NOT NULL, `max_level` TINYINT UNSIGNED NOT NULL, `chance` FLOAT NOT NULL,")
+    w("  PRIMARY KEY (`item`, `kind`, `node`, `min_level`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
     w("")
     w("DELETE FROM `mod_supply_logistics_crate`;")
     w("INSERT INTO `mod_supply_logistics_crate` (`item`, `tier`, `crafted`, `kind`, `sealed`) VALUES")
@@ -80,6 +85,11 @@ def main():
     w("DELETE FROM `mod_supply_logistics_bundle`;")
     w("INSERT INTO `mod_supply_logistics_bundle` (`crate`, `slot`, `reagent`, `count`) VALUES")
     w(",\n".join("(%d, %d, %d, %d)" % (b["crate"], b["slot"], b["reagent"], b["count"]) for b in bundle_rows) + ";")
+    w("-- Scarce materials: the module adds them to gathering (kind 1, the node's name) and skinning (kind 2,")
+    w("-- the creature's level) loot, at `chance` percent times SupplyLogistics.Scarce.Rate.")
+    w("DELETE FROM `mod_supply_logistics_scarce`;")
+    w("INSERT INTO `mod_supply_logistics_scarce` (`item`, `kind`, `node`, `min_level`, `max_level`, `chance`) VALUES")
+    w(",\n".join("(%d, %d, %s, %d, %d, %g)" % (i, k, q(n), lo, hi, c) for i, k, n, lo, hi, c in scarce_sources()) + ";")
     w("DELETE FROM `mod_supply_logistics_writ`;")
     w("INSERT INTO `mod_supply_logistics_writ` (`writ`, `quest`, `tier`, `skill`, `skill2`) VALUES")
     w(",\n".join("(%d, %d, %d, %d, %d)" % (r["writ"], r["quest"], r["tier"], r["skill"], r["skill2"])
@@ -344,6 +354,19 @@ def main():
          ["(%d, 0, 0, 0, 0, 'mod-supply-logistics: no spell power, as Forever')" % spell for spell in flat])
     rows("spell_cone", "ID", [s for s, _d in cones], ["ID", "ConeDegrees"], ["(%d, %d)" % c for c in cones])
     w("")
+    crafts = material_crafts()
+    w("-- What alchemists and engineers make from Scarce materials: taught, as in Forever, by each trainer of")
+    w("-- the profession whose own recipes span the skill it's learned at (not an Apprentice-only trainer, not")
+    w("-- a specialist's), among the trainers this realm has when the file runs. A later update that rewrites")
+    w("-- a trainer's spells drops these: run this file again then.")
+    w("DELETE FROM `trainer_spell` WHERE `SpellId` IN (%s);" % ids(m["craft"] for m in crafts))
+    for m in crafts:
+        w("INSERT INTO `trainer_spell` (`TrainerId`, `SpellId`, `MoneyCost`, `ReqSkillLine`, `ReqSkillRank`, `ReqAbility1`, "
+          "`ReqAbility2`, `ReqAbility3`, `ReqLevel`, `VerifiedBuild`) SELECT `TrainerId`, %d, %d, %d, %d, 0, 0, 0, 0, 0 "
+          "FROM `trainer_spell` WHERE `ReqSkillLine` = %d GROUP BY `TrainerId` HAVING MIN(`ReqSkillRank`) <= %d "
+          "AND MAX(`ReqSkillRank`) >= %d;  -- %s" % (m["craft"], m["cost"], m["skill"], m["learn"], m["skill"], m["learn"],
+                                                   m["learn"], m["name"]))
+    w("")
     certs = [(PROFESSION_VENDORS[skill][side], item, skill) for _t, _b, item, skill, _x in TITLES for side in (0, 1)]
     w("-- Certifications are shown to everyone, red below 300 skill (item RequiredSkill); the module refuses")
     w("-- the purchase below 300, since the vendor checks reputation but not skill. Earlier versions hid them")
@@ -368,13 +391,13 @@ def main():
 def write_uninstall(item_ids, quest_ids, vendors, creature_ids):
     spells = [s[0] for s in USE_SPELLS] + [s[0] for s in MOUNT_SPELLS] + [s[0] for s in PET_SPELLS]
     spells += [SPELL_SIGN_FORM, *SPELL_SIGNPOSTS]
-    crafts = [r["craft"] for r in recipes()]
+    crafts = [r["craft"] for r in recipes()] + [m["craft"] for m in material_crafts()]
     spells += crafts + [s for r in recipes() for s in r["use_spells"]]
     lines = [
         "-- mod-supply-logistics: removes every world row the module adds. Generated by tools/build_data.py.",
         "-- Run by hand. Items already in bags and mail become unknown items; the client patch keeps its rows.",
         "DROP TABLE IF EXISTS `mod_supply_logistics_crate`, `mod_supply_logistics_bundle`, `mod_supply_logistics_writ`, "
-        "`mod_supply_logistics_quest`;",
+        "`mod_supply_logistics_quest`, `mod_supply_logistics_scarce`;",
         "DELETE FROM `item_template` WHERE `entry` IN (%s);" % ids(item_ids + RETIRED_ITEMS),
         "DELETE FROM `quest_template` WHERE `ID` IN (%s);" % ids(quest_ids + RETIRED_QUESTS),
         "DELETE FROM `quest_template_addon` WHERE `ID` IN (%s);" % ids(quest_ids + RETIRED_QUESTS),
@@ -397,7 +420,8 @@ def write_uninstall(item_ids, quest_ids, vendors, creature_ids):
             ("spell_script_names", "spell_id", [s for s, _n in script_names()]),
             ("spell_proc", "SpellId", proc_spells()),
             ("spell_bonus_data", "entry", no_bonus_spells()),
-            ("spell_cone", "ID", [s for s, _d in cone_degrees()])) if keys
+            ("spell_cone", "ID", [s for s, _d in cone_degrees()]),
+            ("trainer_spell", "SpellId", [m["craft"] for m in material_crafts()])) if keys
     ] + [
         "DELETE FROM `faction_dbc` WHERE `ID` IN (%s);" % ids(f[0] for f in FACTIONS),
         "DELETE FROM `chartitles_dbc` WHERE `ID` IN (%s);" % ids(t[0] for t in TITLES),

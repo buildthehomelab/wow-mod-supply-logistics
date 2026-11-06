@@ -18,6 +18,10 @@ CREATE TABLE `mod_supply_logistics_writ` (
 CREATE TABLE IF NOT EXISTS `mod_supply_logistics_quest` (
   `quest` INT UNSIGNED NOT NULL, `rep` INT UNSIGNED NOT NULL, PRIMARY KEY (`quest`))
   ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS `mod_supply_logistics_scarce` (
+  `item` INT UNSIGNED NOT NULL, `kind` TINYINT UNSIGNED NOT NULL, `node` VARCHAR(100) NOT NULL,
+  `min_level` TINYINT UNSIGNED NOT NULL, `max_level` TINYINT UNSIGNED NOT NULL, `chance` FLOAT NOT NULL,
+  PRIMARY KEY (`item`, `kind`, `node`, `min_level`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 DELETE FROM `mod_supply_logistics_crate`;
 INSERT INTO `mod_supply_logistics_crate` (`item`, `tier`, `crafted`, `kind`, `sealed`) VALUES
@@ -149,6 +153,49 @@ INSERT INTO `mod_supply_logistics_bundle` (`crate`, `slot`, `reagent`, `count`) 
 (248713, 0, 15994, 5),
 (248713, 1, 18631, 5),
 (248713, 2, 16000, 2);
+-- Scarce materials: the module adds them to gathering (kind 1, the node's name) and skinning (kind 2,
+-- the creature's level) loot, at `chance` percent times SupplyLogistics.Scarce.Rate.
+DELETE FROM `mod_supply_logistics_scarce`;
+INSERT INTO `mod_supply_logistics_scarce` (`item`, `kind`, `node`, `min_level`, `max_level`, `chance`) VALUES
+(249391, 1, 'Copper Vein', 0, 0, 1),
+(249391, 1, 'Tin Vein', 0, 0, 1),
+(249391, 1, 'Silver Vein', 0, 0, 1),
+(249391, 1, 'Ooze Covered Silver Vein', 0, 0, 1),
+(249391, 1, 'Iron Deposit', 0, 0, 1),
+(249391, 1, 'Ooze Covered Iron Deposit', 0, 0, 1),
+(249425, 1, 'Gold Vein', 0, 0, 1),
+(249425, 1, 'Ooze Covered Gold Vein', 0, 0, 1),
+(249425, 1, 'Mithril Deposit', 0, 0, 1),
+(249425, 1, 'Ooze Covered Mithril Deposit', 0, 0, 1),
+(249399, 1, 'Earthroot', 0, 0, 1.5),
+(249399, 1, 'Mageroyal', 0, 0, 1.5),
+(249399, 1, 'Briarthorn', 0, 0, 1.5),
+(249399, 1, 'Bruiseweed', 0, 0, 1.5),
+(249399, 1, 'Stranglekelp', 0, 0, 1.5),
+(249399, 1, 'Wild Steelbloom', 0, 0, 1.5),
+(249399, 1, 'Kingsblood', 0, 0, 1.5),
+(249424, 1, 'Liferoot', 0, 0, 1.5),
+(249424, 1, 'Fadeleaf', 0, 0, 1.5),
+(249424, 1, 'Goldthorn', 0, 0, 1.5),
+(249424, 1, 'Khadgar''s Whisker', 0, 0, 1.5),
+(249424, 1, 'Wintersbite', 0, 0, 1.5),
+(249424, 1, 'Grave Moss', 0, 0, 1.5),
+(249274, 1, 'Firebloom', 0, 0, 1.5),
+(249274, 1, 'Purple Lotus', 0, 0, 1.5),
+(249274, 1, 'Arthas'' Tears', 0, 0, 1.5),
+(249274, 1, 'Sungrass', 0, 0, 1.5),
+(249274, 1, 'Blindweed', 0, 0, 1.5),
+(249274, 1, 'Ghost Mushroom', 0, 0, 1.5),
+(249274, 1, 'Gromsblood', 0, 0, 1.5),
+(249274, 1, 'Golden Sansam', 0, 0, 1.5),
+(249274, 1, 'Dreamfoil', 0, 0, 1.5),
+(249274, 1, 'Mountain Silversage', 0, 0, 1.5),
+(249274, 1, 'Plaguebloom', 0, 0, 1.5),
+(249274, 1, 'Icecap', 0, 0, 1.5),
+(249274, 1, 'Black Lotus', 0, 0, 1.5),
+(249427, 2, '', 10, 29, 1.5),
+(249428, 2, '', 30, 44, 1.5),
+(249429, 2, '', 45, 255, 1.5);
 DELETE FROM `mod_supply_logistics_writ`;
 INSERT INTO `mod_supply_logistics_writ` (`writ`, `quest`, `tier`, `skill`, `skill2`) VALUES
 (264011, 94004, 2, 171, 0),
@@ -467,7 +514,7 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `Probability0`, `VerifiedBuild`) VALUES
 (9531105, 'Someone else''s signpost. Their sign is theirs to choose.', 1, 0);
 
 -- The items: Forever's ids where Forever has them. Their client rows (icons) are build_patch.py's.
-DELETE FROM `item_template` WHERE `entry` IN (90740, 90741, 90742, 90743, 91100, 91101, 91102, 91150, 91151, 91152, 91153, 91154, 91155, 91156, 91157, 91158, 91159, 91160, 91161, 91162, 91163, 91164, 91165, 91166, 91167, 91168, 91169, 248682, 248683, 248684, 248685, 248686, 248687, 248688, 248689, 248690, 248691, 248692, 248693, 248694, 248695, 248696, 248697, 248698, 248699, 248702, 248703, 248704, 248705, 248706, 248707, 248708, 248709, 248710, 248711, 248712, 248713, 248765, 248766, 248767, 248768, 248769, 248770, 248771, 248772, 248773, 249871, 249872, 249873, 249874, 249875, 249876, 249885, 249886, 249887, 249888, 249889, 249890, 250328, 250329, 250331, 250333, 250335, 250336, 250337, 250338, 250340, 250341, 250342, 250343, 250345, 250347, 250348, 250350, 250351, 250353, 250364, 250365, 250367, 250369, 250371, 250372, 250373, 250374, 250376, 250377, 250378, 250379, 250381, 250383, 250384, 250386, 250387, 250388, 250934, 250937, 250940, 250943, 250946, 250949, 250950, 250951, 250953, 250954, 250978, 250981, 250984, 250987, 250990, 250993, 250994, 250995, 250997, 250998, 262764, 262765, 262766, 262887, 262888, 262889, 262890, 262896, 262902, 262917, 264011, 264012, 264013, 264014, 264015, 264016, 264017, 264018, 264019, 264020, 264021, 264022, 264023, 264024, 264025, 264026, 264027, 264028, 264029, 264030, 264031, 264032, 264033, 264034, 264035, 264036, 264037, 264038, 264039, 264040, 264041, 264042, 264043, 264044, 264045, 264046, 264047, 264048, 264049, 264050, 264051, 264052, 264053, 264054, 264055, 264056, 264057, 264058, 264059, 264060, 264061, 264062, 264063, 264064, 264065, 264066, 264067, 264068, 264069, 264070, 264071, 264072, 264073, 264074, 264075, 264076, 264077, 264078, 264079, 264080, 264081, 264082, 264083, 264084, 264085, 264086, 264087, 264088, 264089, 264090, 264091, 264092, 264093, 264094, 264095, 264096, 264097, 264098, 264099, 264100, 264101, 264102, 264103, 264104, 264105, 264106, 264107, 264108, 264109, 264110, 264111, 264112, 264113, 264114, 264115, 264116, 264117, 264118, 264119, 264120, 264121, 264122, 264123, 264125, 264126, 264127, 264128, 264129, 264130, 264131, 264132, 264133, 264134, 264135, 264136, 264137, 264138, 264139, 264140, 264141, 264142, 264143, 264144, 264145, 264146, 264147, 264148, 264149, 264150, 264151, 264152, 264153, 264154, 264155, 264156, 264157, 264158, 264159, 264160, 270868, 270870, 270887, 270888, 270896, 270897, 271621, 271622, 271624, 271625, 271626, 271627, 284664);
+DELETE FROM `item_template` WHERE `entry` IN (90740, 90741, 90742, 90743, 91100, 91101, 91102, 91150, 91151, 91152, 91153, 91154, 91155, 91156, 91157, 91158, 91159, 91160, 91161, 91162, 91163, 91164, 91165, 91166, 91167, 91168, 91169, 248682, 248683, 248684, 248685, 248686, 248687, 248688, 248689, 248690, 248691, 248692, 248693, 248694, 248695, 248696, 248697, 248698, 248699, 248702, 248703, 248704, 248705, 248706, 248707, 248708, 248709, 248710, 248711, 248712, 248713, 248765, 248766, 248767, 248768, 248769, 248770, 248771, 248772, 248773, 249274, 249391, 249399, 249409, 249410, 249424, 249425, 249427, 249428, 249429, 249430, 249431, 249432, 249871, 249872, 249873, 249874, 249875, 249876, 249885, 249886, 249887, 249888, 249889, 249890, 250328, 250329, 250331, 250333, 250335, 250336, 250337, 250338, 250340, 250341, 250342, 250343, 250345, 250347, 250348, 250350, 250351, 250353, 250364, 250365, 250367, 250369, 250371, 250372, 250373, 250374, 250376, 250377, 250378, 250379, 250381, 250383, 250384, 250386, 250387, 250388, 250934, 250937, 250940, 250943, 250946, 250949, 250950, 250951, 250953, 250954, 250978, 250981, 250984, 250987, 250990, 250993, 250994, 250995, 250997, 250998, 262764, 262765, 262766, 262887, 262888, 262889, 262890, 262896, 262902, 262917, 264011, 264012, 264013, 264014, 264015, 264016, 264017, 264018, 264019, 264020, 264021, 264022, 264023, 264024, 264025, 264026, 264027, 264028, 264029, 264030, 264031, 264032, 264033, 264034, 264035, 264036, 264037, 264038, 264039, 264040, 264041, 264042, 264043, 264044, 264045, 264046, 264047, 264048, 264049, 264050, 264051, 264052, 264053, 264054, 264055, 264056, 264057, 264058, 264059, 264060, 264061, 264062, 264063, 264064, 264065, 264066, 264067, 264068, 264069, 264070, 264071, 264072, 264073, 264074, 264075, 264076, 264077, 264078, 264079, 264080, 264081, 264082, 264083, 264084, 264085, 264086, 264087, 264088, 264089, 264090, 264091, 264092, 264093, 264094, 264095, 264096, 264097, 264098, 264099, 264100, 264101, 264102, 264103, 264104, 264105, 264106, 264107, 264108, 264109, 264110, 264111, 264112, 264113, 264114, 264115, 264116, 264117, 264118, 264119, 264120, 264121, 264122, 264123, 264125, 264126, 264127, 264128, 264129, 264130, 264131, 264132, 264133, 264134, 264135, 264136, 264137, 264138, 264139, 264140, 264141, 264142, 264143, 264144, 264145, 264146, 264147, 264148, 264149, 264150, 264151, 264152, 264153, 264154, 264155, 264156, 264157, 264158, 264159, 264160, 270868, 270870, 270887, 270888, 270896, 270897, 271621, 271622, 271624, 271625, 271626, 271627, 284664);
 INSERT INTO `item_template` (`entry`, `class`, `subclass`, `SoundOverrideSubclass`, `name`, `displayid`, `Quality`, `Flags`, `BuyCount`, `BuyPrice`, `SellPrice`, `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `RequiredSkill`, `RequiredSkillRank`, `RequiredReputationFaction`, `RequiredReputationRank`, `maxcount`, `stackable`, `spellid_1`, `spelltrigger_1`, `spellcharges_1`, `spellcooldown_1`, `spellcategory_1`, `spellcategorycooldown_1`, `spellid_2`, `spelltrigger_2`, `spellcooldown_2`, `spellcategorycooldown_2`, `bonding`, `description`, `startquest`, `Material`, `BagFamily`, `ScriptName`, `VerifiedBuild`) VALUES
 (90740, 10, 0, -1, 'Merchant''s Favor', 13849, 1, 2048, 1, 0, 0, 0, -1, -1, 1, 0, 0, 0, 0, 0, 0, 2147483647, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 1, 'Worth a considerable amount of gold, and so used as an interim currency among high-traffic merchant organizations.', 0, -1, 8192, '', 0),
 (248682, 15, 0, -1, 'Waylaid Crate: Apprentice Herbs', 67129, 1, 0, 1, 0, 0, 0, -1, -1, 10, 10, 0, 0, 0, 0, 0, 5, 90740, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, 'Takes one bundle: 20 Peacebloom, 20 Silverleaf, 10 Earthroot, 10 Mageroyal or 10 Briarthorn.', 0, -1, 0, 'item_supply_waylaid_crate', 0),
@@ -771,7 +818,20 @@ INSERT INTO `item_template` (`entry`, `class`, `subclass`, `SoundOverrideSubclas
 (249875, 0, 5, -1, 'Spicy Smoothie', 91103, 1, 0, 1, 0, 1, 0, -1, -1, 45, 35, 0, 0, 0, 0, 0, 20, 91114, 0, -1, -1, 59, 1000, 0, 0, -1, -1, 0, '', 0, 7, 0, '', 0),
 (249890, 9, 5, -1, 'Recipe: Wicked Smoothie', 1102, 1, 64, 1, 0, 0, 0, -1, -1, 1, 0, 185, 250, 2587, 5, 0, 1, 483, 0, -1, -1, 0, -1, 91105, 6, -1, -1, 1, '', 0, -1, 0, '', 0),
 (91102, 9, 5, -1, 'Recipe: Wicked Smoothie', 1102, 1, 64, 1, 0, 0, 0, -1, -1, 1, 0, 185, 250, 2586, 5, 0, 1, 483, 0, -1, -1, 0, -1, 91105, 6, -1, -1, 1, '', 0, -1, 0, '', 0),
-(249876, 0, 5, -1, 'Wicked Smoothie', 91104, 1, 0, 1, 0, 1, 0, -1, -1, 55, 45, 0, 0, 0, 0, 0, 20, 91116, 0, -1, -1, 59, 1000, 0, 0, -1, -1, 0, '', 0, 7, 0, '', 0);
+(249876, 0, 5, -1, 'Wicked Smoothie', 91104, 1, 0, 1, 0, 1, 0, -1, -1, 55, 45, 0, 0, 0, 0, 0, 20, 91116, 0, -1, -1, 59, 1000, 0, 0, -1, -1, 0, '', 0, 7, 0, '', 0),
+(249391, 7, 7, -1, 'Pyrite', 91950, 2, 0, 1, 0, 100, 0, -1, -1, 25, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, '', 0, 0, 1024, '', 0),
+(249425, 7, 7, -1, 'Bauxite', 91951, 2, 0, 1, 0, 250, 0, -1, -1, 45, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, '', 0, 0, 1024, '', 0),
+(249399, 7, 9, -1, 'Frilled Lichen', 91952, 2, 0, 1, 0, 30, 0, -1, -1, 25, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, '', 0, 2, 32, '', 0),
+(249424, 7, 9, -1, 'Rosecap', 91953, 2, 0, 1, 0, 95, 0, -1, -1, 45, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, '', 0, 2, 32, '', 0),
+(249274, 7, 9, -1, 'Stranglevine', 91954, 2, 0, 1, 0, 250, 0, -1, -1, 60, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, '', 0, 7, 32, '', 0),
+(249427, 7, 6, -1, 'Pristine Leather', 91955, 2, 0, 1, 0, 125, 0, -1, -1, 25, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, '', 0, 8, 8, '', 0),
+(249428, 7, 6, -1, 'Pristine Hide', 91956, 2, 0, 1, 0, 250, 0, -1, -1, 45, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, '', 0, 8, 8, '', 0),
+(249429, 7, 6, -1, 'Pristine Scale', 91957, 2, 0, 1, 0, 375, 0, -1, -1, 60, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, '', 0, 8, 8, '', 0),
+(249409, 7, 11, -1, 'Cerulean Dye', 91958, 2, 0, 1, 0, 75, 0, -1, -1, 25, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, 'Crafted by alchemists.', 0, 3, 8, '', 0),
+(249430, 7, 11, -1, 'Magenta Dye', 91959, 2, 0, 1, 0, 250, 0, -1, -1, 45, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, 'Crafted by alchemists.', 0, 3, 8, '', 0),
+(249431, 7, 11, -1, 'Viridian Dye', 91960, 2, 0, 1, 0, 375, 0, -1, -1, 60, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, 'Crafted by alchemists.', 0, 3, 8, '', 0),
+(249410, 7, 11, -1, 'Sulfuric Acid', 91961, 2, 0, 1, 0, 125, 0, -1, -1, 25, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, 'Crafted by alchemists.', 0, 3, 8, '', 0),
+(249432, 7, 1, -1, 'Sandpaper', 91962, 2, 0, 1, 0, 250, 0, -1, -1, 45, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, -1, 0, -1, 0, 0, -1, -1, 0, 'Crafted by engineers.', 0, 3, 128, '', 0);
 
 -- The Minimule (Packmule Treat's companion), the Pack Mule and Pack Kodo mounts' looks, and the signpost toys'
 -- posts and signs (the posts are summoned by the toys' spells; the module puts the signs up). Their displays
@@ -2031,6 +2091,17 @@ INSERT INTO `spell_bonus_data` (`entry`, `direct_bonus`, `dot_bonus`, `ap_bonus`
 DELETE FROM `spell_cone` WHERE `ID` IN (91206);
 INSERT INTO `spell_cone` (`ID`, `ConeDegrees`) VALUES
 (91206, 45);
+
+-- What alchemists and engineers make from Scarce materials: taught, as in Forever, by each trainer of
+-- the profession whose own recipes span the skill it's learned at (not an Apprentice-only trainer, not
+-- a specialist's), among the trainers this realm has when the file runs. A later update that rewrites
+-- a trainer's spells drops these: run this file again then.
+DELETE FROM `trainer_spell` WHERE `SpellId` IN (91950, 91951, 91952, 91953, 91954);
+INSERT INTO `trainer_spell` (`TrainerId`, `SpellId`, `MoneyCost`, `ReqSkillLine`, `ReqSkillRank`, `ReqAbility1`, `ReqAbility2`, `ReqAbility3`, `ReqLevel`, `VerifiedBuild`) SELECT `TrainerId`, 91950, 150, 171, 40, 0, 0, 0, 0, 0 FROM `trainer_spell` WHERE `ReqSkillLine` = 171 GROUP BY `TrainerId` HAVING MIN(`ReqSkillRank`) <= 40 AND MAX(`ReqSkillRank`) >= 40;  -- Cerulean Dye
+INSERT INTO `trainer_spell` (`TrainerId`, `SpellId`, `MoneyCost`, `ReqSkillLine`, `ReqSkillRank`, `ReqAbility1`, `ReqAbility2`, `ReqAbility3`, `ReqLevel`, `VerifiedBuild`) SELECT `TrainerId`, 91951, 1500, 171, 120, 0, 0, 0, 0, 0 FROM `trainer_spell` WHERE `ReqSkillLine` = 171 GROUP BY `TrainerId` HAVING MIN(`ReqSkillRank`) <= 120 AND MAX(`ReqSkillRank`) >= 120;  -- Magenta Dye
+INSERT INTO `trainer_spell` (`TrainerId`, `SpellId`, `MoneyCost`, `ReqSkillLine`, `ReqSkillRank`, `ReqAbility1`, `ReqAbility2`, `ReqAbility3`, `ReqLevel`, `VerifiedBuild`) SELECT `TrainerId`, 91952, 10000, 171, 215, 0, 0, 0, 0, 0 FROM `trainer_spell` WHERE `ReqSkillLine` = 171 GROUP BY `TrainerId` HAVING MIN(`ReqSkillRank`) <= 215 AND MAX(`ReqSkillRank`) >= 215;  -- Viridian Dye
+INSERT INTO `trainer_spell` (`TrainerId`, `SpellId`, `MoneyCost`, `ReqSkillLine`, `ReqSkillRank`, `ReqAbility1`, `ReqAbility2`, `ReqAbility3`, `ReqLevel`, `VerifiedBuild`) SELECT `TrainerId`, 91953, 150, 171, 40, 0, 0, 0, 0, 0 FROM `trainer_spell` WHERE `ReqSkillLine` = 171 GROUP BY `TrainerId` HAVING MIN(`ReqSkillRank`) <= 40 AND MAX(`ReqSkillRank`) >= 40;  -- Sulfuric Acid
+INSERT INTO `trainer_spell` (`TrainerId`, `SpellId`, `MoneyCost`, `ReqSkillLine`, `ReqSkillRank`, `ReqAbility1`, `ReqAbility2`, `ReqAbility3`, `ReqLevel`, `VerifiedBuild`) SELECT `TrainerId`, 91954, 500, 202, 120, 0, 0, 0, 0, 0 FROM `trainer_spell` WHERE `ReqSkillLine` = 202 GROUP BY `TrainerId` HAVING MIN(`ReqSkillRank`) <= 120 AND MAX(`ReqSkillRank`) >= 120;  -- Sandpaper
 
 -- Certifications are shown to everyone, red below 300 skill (item RequiredSkill); the module refuses
 -- the purchase below 300, since the vendor checks reputation but not skill. Earlier versions hid them

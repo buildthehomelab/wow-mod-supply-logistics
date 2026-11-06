@@ -88,3 +88,14 @@ SupplyLogistics.ProfessionWeight = 50
 #
 
 SupplyLogistics.CampNpcFlags = 1
+
+#
+#    SupplyLogistics.Scarce.Rate
+#        Description: Scarce materials (WoW Forever's bonus drops with gathering and skinning: Pyrite,
+#                     Bauxite, Frilled Lichen, Rosecap, Stranglevine, Pristine Leather, Hide and Scale)
+#                     drop at this percent of their table chance (1-1.5% a gather). 0 turns them off.
+#                     Bots get none.
+#        Default:     100
+#
+
+SupplyLogistics.Scarce.Rate = 100
