@@ -242,9 +242,10 @@ DISPLAY = {
 # (also its SkillLineAbility id), the product's use spells, the Alliance copy of a rank-gated recipe,
 # and displays for icons the client has no display for. They are stored in recipes.tsv once given
 # (assign_ids), so a later fetch never moves them: players' learned spells and bags hold these ids.
-RECIPE_BLOCKS = {185: (91100, 50)}        # Cooking 91100-91149; the rest in PLAN.md
+RECIPE_BLOCKS = {185: (91100, 50), 171: (91150, 100)}   # Cooking 91100-91149, Alchemy 91150-91249; the rest in PLAN.md
+SKILL_ALCHEMY = 171
 SKILL_COOKING = 185
-RECIPE_SUBCLASS = {185: 5}
+RECIPE_SUBCLASS = {185: 5, 171: 6}
 # Ids up to here are the client's own items: a recipe whose product is one gets no item row of ours.
 STOCK_ITEM_MAX = 56806                 # the 3.3.5a client's last item
 # Rank gates. Forever's tables have none on the items (its vendors gate them), and Wowhead shows
@@ -258,12 +259,28 @@ CHEF_RECIPES = [21099, 21219]          # Smoked Sagefish, Sagefish Delight
 # Brain Food's mana half (a plain regen aura plus a periodic trigger into Well Fed: a stock drink's
 # own ids are hard-coded in the core, so copying one of those would restore nothing), with the
 # duration and amount of the stock drink Forever's triggers.
-CRAFT_TEMPLATE = {185: 25704}          # Smoked Sagefish
+CRAFT_TEMPLATE = {185: 25704, 171: 17571}   # Smoked Sagefish (at a fire), Elixir of the Mongoose
 DRINK_TEMPLATE, WELL_FED_TEMPLATE = 25703, 25694
 DRINK_ICON, WELL_FED_ICON = "inv_drink_07", "inv_misc_food_01"     # Forever's (132794, 133943)
 STAT_NAMES = {4: "Spirit"}
 WELL_FED_GROUP = 1001                  # spell_group: stock Well Fed buffs replace each other
-USE_SPELL_COUNT = {"drink": 2}         # the drink, its Well Fed
+# Alchemy. Elixirs are battle or guardian elixirs, as the stock ones (spell_group 1 and 2: one of
+# each at a time): guardian if every effect is health, armor, regeneration, Stamina, Intellect or
+# Spirit, battle otherwise (strength, agility, power, healing, crit). They last an hour, as the stock
+# ones (user 2026-11-05; Forever's last 30 minutes). Potions and the thrown or drunk specials share
+# the stock potion cooldown.
+BATTLE_ELIXIR, GUARDIAN_ELIXIR = 1, 2
+GUARDIAN_AURAS, GUARDIAN_STATS, AURA_MOD_STAT_ID = {22, 34, 85, 161}, {2, 3, 4}, 29
+ELIXIR_DURATION_MS = 3600000
+BUFF_TEMPLATE = {BATTLE_ELIXIR: 17538, GUARDIAN_ELIXIR: 11396, "potion": 53908}   # Mongoose, Greater Intellect, Speed
+CONE_TEMPLATE = 23461                  # Flame Breath: a hit and a burn in a cone
+CLOUD_TEMPLATE = 67594                 # Poison Bottle: a cloud on the ground, its green smoke
+ITEM_CATEGORY = {"drink": (59, 1000), "elixir": (79, 3000), "potion": (4, 60000)}
+VENOM_SCRIPTS = ("spell_supply_venomous_blood", "spell_supply_venomous_blood_dose")
+PROC_FLAG_TAKEN_PERIODIC, PROC_SPELL_TYPE_DAMAGE = 0x80000, 1
+# Our spells for a product's use, by kind: a drink and its Well Fed; a buff; Dragonfire's cone; Caustic
+# Smog's cloud; Venomous Blood's doses, the dose it spreads and the damage a dose does when it runs out.
+USE_SPELL_COUNT = {"drink": 2, "buff": 1, "cone": 1, "cloud": 1, "venom": 3}
 # Icons the client already has an icon-only ItemDisplayInfo row for. Any other icon gets a new row
 # (a copy of ICON_DISPLAY_TEMPLATE, a drink: its pickup sound suits drinks and potions, pick another
 # template for professions whose products aren't liquids). The smoothies' recoloured drinks are in
@@ -408,9 +425,67 @@ def new_displays():
     return sorted(seen.items())
 
 
-def well_fed_spells():
-    """The Well Fed buffs of the recipes' drinks."""
-    return sorted(r["use_spells"][1] for r in recipes() if r["use"] and r["use"][0] == "drink")
+def buff_auras(r):
+    """(aura, misc, amount) of a buff recipe's product."""
+    return [tuple(int(x) for x in a.split(":")) for a in r["use"][3:]]
+
+
+def elixir_group(r):
+    guardian = all(a in GUARDIAN_AURAS or (a == AURA_MOD_STAT_ID and m in GUARDIAN_STATS) for a, m, _n in buff_auras(r))
+    return GUARDIAN_ELIXIR if guardian else BATTLE_ELIXIR
+
+
+def product_kind(r):
+    """drink, elixir or potion: what the product's cooldown and stacking follow."""
+    if not r["use"]:
+        return None
+    if r["use"][0] == "drink":
+        return "drink"
+    if r["use"][0] == "buff" and r["use"][1] == "elixir":
+        return "elixir"
+    return "potion"
+
+
+def spell_groups():
+    """(spell_group id, spell): Well Fed buffs with the stock Well Fed, elixirs with their kind."""
+    out = []
+    for r in recipes():
+        if r["use"] and r["use"][0] == "drink":
+            out.append((WELL_FED_GROUP, r["use_spells"][1]))
+        elif product_kind(r) == "elixir":
+            out.append((elixir_group(r), r["use_spells"][0]))
+    return sorted(out)
+
+
+def script_names():
+    """(spell, ScriptName) for the products the module's C++ drives."""
+    out = []
+    for r in recipes():
+        if r["use"] and r["use"][0] == "venom":
+            out += list(zip(r["use_spells"][:2], VENOM_SCRIPTS))
+    return sorted(out)
+
+
+def proc_spells():
+    """Venomous Blood's buffs, which proc on bleed ticks taken."""
+    return sorted(r["use_spells"][0] for r in recipes() if r["use"] and r["use"][0] == "venom")
+
+
+def cone_degrees():
+    """(spell, degrees) for the cones: Forever's width, not the target type's 24."""
+    return sorted((r["use_spells"][0], int(r["use"][7])) for r in recipes() if r["use"] and r["use"][0] == "cone")
+
+
+def no_bonus_spells():
+    """Damage spells that don't grow with spell power (Forever's coefficients are 0)."""
+    out = []
+    for r in recipes():
+        kind = r["use"][0] if r["use"] else None
+        if kind in ("cone", "cloud"):
+            out.append(r["use_spells"][0])
+        elif kind == "venom":
+            out.append(r["use_spells"][2])
+    return sorted(out)
 
 
 def recipe_vendor_items(side):
@@ -568,9 +643,11 @@ def items():
             continue
         products.add(r["product"])
         product = dict(level=r["required_level"], item_level=r["item_level"], stackable=r["stack"], sell=r["sell"])
-        if r["use"] and r["use"][0] == "drink":
-            product.update(spell=r["use_spells"][0], category=DRINK_CATEGORY, category_cooldown=1000, material=7,
-                           charges=USED_UP)
+        kind = product_kind(r)
+        if kind:
+            category, cooldown = ITEM_CATEGORY[kind]
+            product.update(spell=r["use_spells"][0], category=category, category_cooldown=cooldown,
+                           material=7 if kind == "drink" else 3, charges=USED_UP)
         add(r["product"], r["product_name"], r["product_class"], r["product_subclass"], r["product_display"], 1,
             **product)
     if len({i["entry"] for i in out}) != len(out):
