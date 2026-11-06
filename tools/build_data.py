@@ -11,7 +11,7 @@ Released under the MIT License.
 
 import os
 
-from catalog import (COMPLETED_FORMS, FORMS, LICENSE_QUESTS, LICENSES, LOOK, ORC_SIGN_LOOKS, DWARF_BOARD_LOOKS, PACK_KODO,
+from catalog import (CHEF_RECIPES, SKILL_COOKING, WELL_FED_GROUP, well_fed_spells, recipe_vendor_items, recipes, COMPLETED_FORMS, FORMS, LICENSE_QUESTS, LICENSES, LOOK, ORC_SIGN_LOOKS, DWARF_BOARD_LOOKS, PACK_KODO,
                      SIGNPOSTS, SIGNPOST_TOYS, SIGNS, SPELL_SIGNPOSTS, SPELL_SIGN_FORM, TABARDS, TEXT_SIGNPOST, TEXT_SIGNPOST_NONE,
                      TEXT_SIGNPOST_NOT_YOURS, COSTS, CURRENCY_ID, FACTIONS, MOUNT_SPELLS, PET_SPELLS, USE_SPELLS, KINDS, TEXT_CRATE, TEXT_QUILL, TEXT_RECEIPT, CHEF_GOODS, CONTAINER, COST_ID, CRATE_RETURN, FAVOR, MINIMULE, MULE_MOUNT, NPC, PROFESSION_VENDORS, QUILLS,
                      RECEIPT, RECEIPT_REP, REINS, RETIRED_WRITS, SEALED, TIER_NAMES, TITLES, TREATS, WRIT_FAVOR, bundles, crates,
@@ -115,7 +115,7 @@ def main():
             "BuyCount", "BuyPrice", "SellPrice", "InventoryType", "AllowableClass", "AllowableRace", "ItemLevel",
             "RequiredLevel", "RequiredSkill", "RequiredSkillRank", "RequiredReputationFaction",
             "RequiredReputationRank", "maxcount", "stackable", "spellid_1", "spelltrigger_1", "spellcharges_1",
-            "spellcooldown_1", "spellcategorycooldown_1", "spellid_2", "spelltrigger_2", "spellcooldown_2",
+            "spellcooldown_1", "spellcategory_1", "spellcategorycooldown_1", "spellid_2", "spelltrigger_2", "spellcooldown_2",
             "spellcategorycooldown_2", "bonding", "description", "startquest", "Material", "BagFamily",
             "ScriptName", "VerifiedBuild"]
     w("INSERT INTO `item_template` (%s) VALUES" % ", ".join("`%s`" % c for c in cols))
@@ -130,7 +130,7 @@ def main():
             "RequiredSkillRank": i["skill_rank"], "RequiredReputationFaction": i["rep_faction"],
             "RequiredReputationRank": i["rep_rank"], "maxcount": i["maxcount"], "stackable": i["stackable"],
             "spellid_1": i["spell"], "spelltrigger_1": i["trigger"], "spellcharges_1": i["charges"], "spellcooldown_1": -1,
-            "spellcategorycooldown_1": -1, "spellid_2": i["spell2"], "spelltrigger_2": i["trigger2"],
+            "spellcategory_1": i["category"], "spellcategorycooldown_1": i["category_cooldown"], "spellid_2": i["spell2"], "spelltrigger_2": i["trigger2"],
             "spellcooldown_2": -1, "spellcategorycooldown_2": -1, "bonding": i["bonding"],
             "description": q(i["description"]), "startquest": i["startquest"], "Material": i["material"],
             "BagFamily": i["bag_family"], "ScriptName": q(i["script"]), "VerifiedBuild": 0,
@@ -305,11 +305,15 @@ def main():
         stock.append((NPC["scribe"][side], RECEIPT, COST_ID[15]))
         for _title, _bit, item, skill, _text in TITLES:
             stock.append((PROFESSION_VENDORS[skill][side], item, COST_ID[1000]))
-        for good in CHEF_GOODS:
+        for good in CHEF_GOODS + CHEF_RECIPES:
             stock.append((NPC["chef"][side], good, 0))
+        for skill, sold in sorted(recipe_vendor_items(side).items()):
+            vendor = NPC["chef"][side] if skill == SKILL_COOKING else PROFESSION_VENDORS[skill][side]
+            for item, favor in sold:
+                stock.append((vendor, item, COST_ID[favor]))
     vendors = sorted({v for v, _i, _c in stock})
     w("-- What they sell, priced in Merchant's Favor (ItemExtendedCost, see mod_supply_logistics_dbc.sql).")
-    w("-- The recipes come later.")
+    w("-- Recipes Forever sells for Favor, and the chefs' stock recipes for coin (data/recipes.tsv).")
     w("DELETE FROM `npc_vendor` WHERE `entry` IN (%s);" % ids(vendors))
     w("INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `VerifiedBuild`) VALUES")
     slots = {}
@@ -318,6 +322,12 @@ def main():
         slots[vendor] = slots.get(vendor, -1) + 1
         lines.append("(%d, %d, %d, 0, 0, %d, 0)" % (vendor, slots[vendor], item, cost))
     w(",\n".join(lines) + ";")
+    fed = well_fed_spells()
+    w("-- The drinks' Well Fed buffs replace any other Well Fed, as the stock ones do (spell_group 1001).")
+    w("DELETE FROM `spell_group` WHERE `id` = %d AND `spell_id` IN (%s);" % (WELL_FED_GROUP, ids(fed)))
+    w("INSERT INTO `spell_group` (`id`, `spell_id`) VALUES")
+    w(",\n".join("(%d, %d)" % (WELL_FED_GROUP, spell) for spell in fed) + ";")
+    w("")
     certs = [(PROFESSION_VENDORS[skill][side], item, skill) for _t, _b, item, skill, _x in TITLES for side in (0, 1)]
     w("-- Certifications are shown to everyone, red below 300 skill (item RequiredSkill); the module refuses")
     w("-- the purchase below 300, since the vendor checks reputation but not skill. Earlier versions hid them")
@@ -342,6 +352,8 @@ def main():
 def write_uninstall(item_ids, quest_ids, vendors, creature_ids):
     spells = [s[0] for s in USE_SPELLS] + [s[0] for s in MOUNT_SPELLS] + [s[0] for s in PET_SPELLS]
     spells += [SPELL_SIGN_FORM, *SPELL_SIGNPOSTS]
+    crafts = [r["craft"] for r in recipes()]
+    spells += crafts + [s for r in recipes() for s in r["use_spells"]]
     lines = [
         "-- mod-supply-logistics: removes every world row the module adds. Generated by tools/build_data.py.",
         "-- Run by hand. Items already in bags and mail become unknown items; the client patch keeps its rows.",
@@ -362,7 +374,8 @@ def write_uninstall(item_ids, quest_ids, vendors, creature_ids):
         "DELETE FROM `creature_template` WHERE `entry` IN (%s);" % ids(creature_ids),
         "DELETE FROM `npc_text` WHERE `ID` IN (%s);" % ids(TEXTS),
         "DELETE FROM `spell_dbc` WHERE `ID` IN (%s);" % ids(spells),
-        "DELETE FROM `skilllineability_dbc` WHERE `ID` IN (%s);" % ids(s[0] for s in MOUNT_SPELLS + PET_SPELLS),
+        "DELETE FROM `skilllineability_dbc` WHERE `ID` IN (%s);" % ids([s[0] for s in MOUNT_SPELLS + PET_SPELLS] + crafts),
+        "DELETE FROM `spell_group` WHERE `id` = %d AND `spell_id` IN (%s);" % (WELL_FED_GROUP, ids(well_fed_spells())),
         "DELETE FROM `faction_dbc` WHERE `ID` IN (%s);" % ids(f[0] for f in FACTIONS),
         "DELETE FROM `chartitles_dbc` WHERE `ID` IN (%s);" % ids(t[0] for t in TITLES),
         "DELETE FROM `currencytypes_dbc` WHERE `ID` = %d;" % CURRENCY_ID,

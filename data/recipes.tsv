@@ -1,0 +1,7 @@
+skill	recipe	name	favor	sides	learn	yellow	grey	product	product_name	made	reagents	recipe_icon	product_icon	product_class	product_subclass	item_level	required_level	stack	sell	use	rank	craft	use_spells	alliance_item	recipe_display	product_display
+185	249885	Recipe: Venomous Smoothie	30	both	25	30	45	249871	Venomous Smoothie	1	159:1,2678:1,1475:1	inv_scroll_03	inv_drink_21	0	5	5	1	20	1	drink 430 stat 4 1	0	91100	91106 91107	0	1102	40652
+185	249886	Recipe: Slimy Smoothie	30	both	100	105	120	249872	Slimy Smoothie	1	1179:1,2678:2,3174:1	inv_scroll_03	inv_drink_15_color03	0	5	15	5	20	1	drink 431 stat 4 3	0	91101	91108 91109	0	1102	91100
+185	249887	Recipe: Mrrggl Smrrthle	30	both	125	135	145	249873	Mrrggl Smrrthle	1	1205:1,2692:2,1468:1	inv_scroll_03	inv_drink_21_color01	0	5	25	15	20	1	drink 432 stat 4 5	0	91102	91110 91111	0	1102	91101
+185	249888	Recipe: Calcified Smoothie	60	both	180	185	195	249874	Calcified Smoothie	1	1708:1,2692:3,5637:1	inv_scroll_03	inv_drink_15_color01	0	5	35	25	20	1	drink 1133 stat 4 10	4	91103	91112 91113	91100	1102	91102
+185	249889	Recipe: Spicy Smoothie	60	both	200	215	225	249875	Spicy Smoothie	1	1645:1,3713:3,4402:1	inv_scroll_03	inv_drink_21_color04	0	5	45	35	20	1	drink 1135 stat 4 15	4	91104	91114 91115	91101	1102	91103
+185	249890	Recipe: Wicked Smoothie	90	both	250	255	270	249876	Wicked Smoothie	1	8766:1,3713:4,8146:1	inv_scroll_03	inv_drink_15_color04	0	5	55	45	20	1	drink 1137 stat 4 20	5	91105	91116 91117	91102	1102	91104

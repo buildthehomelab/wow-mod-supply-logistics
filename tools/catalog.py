@@ -5,7 +5,8 @@ Ids: Forever's own where Forever has the thing (items, quests, creatures, factio
 Ours: items, spells, spell icons, item displays and extended costs 90740-90759 (the Favor item, the
 Alliance copies), creatures and npc_text 9531100-9531199 (the mule, the mounts' looks, the dwarven sign
 boards, the menus), creature displays and models 95310-95339 (data/looks.tsv, the art), titles 193-198
-(bits 158-163).
+(bits 158-163),
+and for the recipes spells, SkillLineAbility, items and ItemDisplayInfo 91100-91999 (RECIPE_BLOCKS).
 
 Released under the MIT License.
 """
@@ -233,6 +234,196 @@ DISPLAY = {
 }
 
 
+# --- Recipes ---------------------------------------------------------------------------------------
+
+# data/recipes.tsv (fetch_recipes.py): Forever's recipes the camps sell for Favor, a profession at a
+# time. Forever's ids for the recipe and what it makes. Ours, by profession, each in its own block of
+# 91100-91999 (spells, SkillLineAbility, items and ItemDisplayInfo count separately): the craft spell
+# (also its SkillLineAbility id), the product's use spells, the Alliance copy of a rank-gated recipe,
+# and displays for icons the client has no display for. They are stored in recipes.tsv once given
+# (assign_ids), so a later fetch never moves them: players' learned spells and bags hold these ids.
+RECIPE_BLOCKS = {185: (91100, 50)}        # Cooking 91100-91149; the rest in PLAN.md
+SKILL_COOKING = 185
+RECIPE_SUBCLASS = {185: 5}
+# Ids up to here are the client's own items: a recipe whose product is one gets no item row of ours.
+STOCK_ITEM_MAX = 56806                 # the 3.3.5a client's last item
+# Rank gates. Forever's tables have none on the items (its vendors gate them), and Wowhead shows
+# none, so the rank follows the price: a profession's cheapest recipes need nothing, its next tier
+# Friendly, the rest Honored.
+FRIENDLY = 4
+RANK_BY_PRICE_TIER = [0, FRIENDLY, HONORED]
+# Stock recipes the camp chefs sell for coin, as Forever's do.
+CHEF_RECIPES = [21099, 21219]          # Smoked Sagefish, Sagefish Delight
+# Templates in the client's Spell.dbc. Craft spells copy a stock recipe of the profession; drinks copy
+# Brain Food's mana half (a plain regen aura plus a periodic trigger into Well Fed: a stock drink's
+# own ids are hard-coded in the core, so copying one of those would restore nothing), with the
+# duration and amount of the stock drink Forever's triggers.
+CRAFT_TEMPLATE = {185: 25704}          # Smoked Sagefish
+DRINK_TEMPLATE, WELL_FED_TEMPLATE = 25703, 25694
+DRINK_ICON, WELL_FED_ICON = "inv_drink_07", "inv_misc_food_01"     # Forever's (132794, 133943)
+STAT_NAMES = {4: "Spirit"}
+WELL_FED_GROUP = 1001                  # spell_group: stock Well Fed buffs replace each other
+USE_SPELL_COUNT = {"drink": 2}         # the drink, its Well Fed
+# Icons the client already has an icon-only ItemDisplayInfo row for. Any other icon gets a new row
+# (a copy of ICON_DISPLAY_TEMPLATE, a drink: its pickup sound suits drinks and potions, pick another
+# template for professions whose products aren't liquids). The smoothies' recoloured drinks are in
+# every client already: Project Reforged HD's patch-I has them, under Forever's names.
+ICON_DISPLAYS = {"inv_scroll_03": 1102, "inv_drink_21": 40652}
+ICON_DISPLAY_TEMPLATE = 40652
+RECIPE_LEARNING = 483                  # every stock recipe's first spell
+DRINK_CATEGORY = 59                    # the stock drinks' shared cooldown
+USED_UP = -1                           # spellcharges: the item goes when used, as stock consumables
+# Stored once given, like the rank: a recipe someone bought never changes what it needs.
+ID_COLUMNS = ["rank", "craft", "use_spells", "alliance_item", "recipe_display", "product_display"]
+INT_COLUMNS = ("skill", "recipe", "favor", "learn", "yellow", "grey", "product", "made", "product_class",
+               "product_subclass", "item_level", "required_level", "stack", "sell")
+
+
+def _ints(text):
+    return [int(x) for x in text.split()] if text else []
+
+
+def recipe_ranks(group):
+    """{recipe: rank} for one profession's rows: the rank follows the recipe's price tier."""
+    prices = sorted({int(r["favor"]) for r in group})
+    return {int(r["recipe"]): RANK_BY_PRICE_TIER[min(prices.index(int(r["favor"])), len(RANK_BY_PRICE_TIER) - 1)]
+            for r in group}
+
+
+def gated_both_sides(r):
+    return bool(int(r["rank"])) and r["sides"] == "both"
+
+
+def assign_ids(rows):
+    """Gives every row the ids it lacks, from its profession's block, after the ones already used.
+    Rows are fetch_recipes.py's (strings); ids already in a row are kept."""
+    by_skill = {}
+    for r in rows:
+        by_skill.setdefault(int(r["skill"]), []).append(r)
+    for skill, group in by_skill.items():
+        base, size = RECIPE_BLOCKS[skill]
+        ranks = recipe_ranks(group)
+        for r in group:
+            if r.get("rank") in (None, ""):
+                r["rank"] = ranks[int(r["recipe"])]
+        spells = {x for r in group for x in [int(r.get("craft") or 0)] + _ints(r.get("use_spells", "")) if x}
+        items = {int(r["alliance_item"]) for r in group if r.get("alliance_item") not in (None, "", "0")}
+        icons = {}
+        for r in group:
+            for col in ("recipe", "product"):
+                if r.get(col + "_display"):
+                    icons[r[col + "_icon"]] = int(r[col + "_display"])
+
+        def next_free(used):
+            n = max([x for x in used if base <= x < base + size] or [base - 1]) + 1
+            if n >= base + size:
+                raise ValueError("skill %d outgrew its block %d-%d" % (skill, base, base + size - 1))
+            used.add(n)
+            return n
+
+        for r in group:                         # craft spells first, then use spells, as first given
+            if not r.get("craft"):
+                r["craft"] = next_free(spells)
+        for r in group:
+            want = USE_SPELL_COUNT.get(r["use"].split()[0], 0) if r["use"] else 0
+            have = _ints(r.get("use_spells", ""))
+            if len(have) != want:
+                if have:
+                    raise ValueError("recipe %s: its use spells %s don't fit its use %r" % (r["recipe"], have, r["use"]))
+                r["use_spells"] = " ".join(str(next_free(spells)) for _ in range(want))
+            if gated_both_sides(r) and r.get("alliance_item") in (None, "", "0"):
+                r["alliance_item"] = next_free(items)
+            r.setdefault("alliance_item", 0)
+            r["alliance_item"] = r["alliance_item"] or 0
+            for col in ("recipe", "product"):
+                icon = r[col + "_icon"]
+                if icon not in icons:
+                    icons[icon] = ICON_DISPLAYS.get(icon) or next_free(set(icons.values()))
+                r[col + "_display"] = icons[icon]
+    return rows
+
+
+def recipes():
+    """The recipes with every id the module gives them, in data/recipes.tsv order. Checks the ids;
+    gives none (fetch_recipes.py does, through assign_ids)."""
+    rows = read_tsv("recipes.tsv")
+    by_skill = {}
+    for r in rows:
+        for k in INT_COLUMNS + ("rank", "craft", "alliance_item", "recipe_display", "product_display"):
+            r[k] = int(r[k])
+        r["use_spells"] = _ints(r["use_spells"])
+        r["use"] = r["use"].split() if r["use"] else []
+        r["reagents"] = [tuple(int(x) for x in part.split(":")) for part in r["reagents"].split(",")]
+        if len(r["reagents"]) > 8:
+            raise ValueError("recipe %d has more than 8 reagents" % r["recipe"])
+        if r["recipe"] <= STOCK_ITEM_MAX:
+            raise ValueError("recipe %d is a stock item: sell it for coin (CHEF_RECIPES) instead" % r["recipe"])
+        by_skill.setdefault(r["skill"], []).append(r)
+    seen_spells, seen_items, icon_of = set(), set(), {}
+    for skill, group in by_skill.items():
+        base, size = RECIPE_BLOCKS[skill]
+
+        def ours(x, what, r):
+            if not base <= x < base + size:
+                raise ValueError("recipe %d: %s %d is outside skill %d's block" % (r["recipe"], what, x, skill))
+
+        for r in group:
+            if r["rank"] not in RANK_BY_PRICE_TIER:
+                raise ValueError("recipe %d: rank %d" % (r["recipe"], r["rank"]))
+            if r["use"] and r["use"][0] not in USE_SPELL_COUNT:
+                raise ValueError("recipe %d: unknown use %r" % (r["recipe"], r["use"]))
+            if len(r["use_spells"]) != (USE_SPELL_COUNT[r["use"][0]] if r["use"] else 0):
+                raise ValueError("recipe %d: run fetch_recipes.py, its use spells are missing" % r["recipe"])
+            for x in [r["craft"]] + r["use_spells"]:
+                ours(x, "spell", r)
+                if x in seen_spells:
+                    raise ValueError("spell %d is given twice" % x)
+                seen_spells.add(x)
+            if gated_both_sides(r) != bool(r["alliance_item"]):
+                raise ValueError("recipe %d: its Alliance copy doesn't match its rank and sides" % r["recipe"])
+            if r["alliance_item"]:
+                ours(r["alliance_item"], "item", r)
+                if r["alliance_item"] in seen_items:
+                    raise ValueError("item %d is given twice" % r["alliance_item"])
+                seen_items.add(r["alliance_item"])
+            for col in ("recipe", "product"):
+                icon, display = r[col + "_icon"], r[col + "_display"]
+                if icon in ICON_DISPLAYS:
+                    if display != ICON_DISPLAYS[icon]:
+                        raise ValueError("recipe %d: icon %s isn't display %d" % (r["recipe"], icon, display))
+                else:
+                    ours(display, "display", r)
+                if icon_of.setdefault(display, icon) != icon:
+                    raise ValueError("display %d has two icons" % display)
+    return rows
+
+
+def new_displays():
+    """(display id, icon) for the ItemDisplayInfo rows the recipes add."""
+    seen = {}
+    for r in recipes():
+        for icon, display in ((r["recipe_icon"], r["recipe_display"]), (r["product_icon"], r["product_display"])):
+            if icon not in ICON_DISPLAYS:
+                seen[display] = icon
+    return sorted(seen.items())
+
+
+def well_fed_spells():
+    """The Well Fed buffs of the recipes' drinks."""
+    return sorted(r["use_spells"][1] for r in recipes() if r["use"] and r["use"][0] == "drink")
+
+
+def recipe_vendor_items(side):
+    """(recipe item, Favor) each camp's profession vendor sells, by skill."""
+    out = {}
+    for r in recipes():
+        if r["sides"] not in ("both", ("horde", "alliance")[side]):
+            continue
+        item = r["alliance_item"] if side == 1 and r["alliance_item"] else r["recipe"]
+        out.setdefault(r["skill"], []).append((item, r["favor"]))
+    return out
+
+
 def read_tsv(name):
     with open(os.path.join(DATA, name), newline="") as f:
         return list(csv.DictReader(f, delimiter="\t"))
@@ -277,7 +468,8 @@ def items():
         row = dict(entry=entry, name=name, cls=cls, subclass=subclass, display=display, quality=quality,
                    stackable=1, bonding=0, description="", spell=0, trigger=0, spell2=0, trigger2=0,
                    level=0, skill=0, skill_rank=0, rep_faction=0, rep_rank=0, startquest=0, script="",
-                   bag_family=0, flags=0, maxcount=0, material=-1, sell=0, buy=0, inv_type=0, item_level=0, charges=0)
+                   bag_family=0, flags=0, maxcount=0, material=-1, sell=0, buy=0, inv_type=0, item_level=0, category=0,
+                   category_cooldown=-1, charges=0)
         row.update(kw)
         out.append(row)
 
@@ -330,10 +522,10 @@ def items():
             (REINS[0], SPELL_PACK_KODO, "Reins of the Pack Kodo", DISPLAY["reins_kodo"]),
             (REINS[1], SPELL_PACK_MULE, "Reins of the Pack Mule", DISPLAY["reins_mule"])):
         add(item, name, 15, 5, display, 4, bonding=1, skill=762, skill_rank=150, spell=LEARN, spell2=spell,
-            trigger2=6, level=40)
+            trigger2=6, level=40, charges=USED_UP)
     for item in TREATS:
         add(item, "Packmule Treat", 15, 2, DISPLAY["treat"], 2, bonding=1, spell=LEARN, spell2=SPELL_MINIMULE,
-            trigger2=6, sell=1250)
+            trigger2=6, sell=1250, charges=USED_UP)
 
     # Forever's tabards: cloth, unique, item level 20.
     for faction, item, name, display in (
@@ -358,4 +550,29 @@ def items():
             (SIGNPOST_TOYS[0], SPELL_SIGNPOSTS[0], "Orcish Tradeskill Signpost", DISPLAY["toy_orc"]),
             (SIGNPOST_TOYS[1], SPELL_SIGNPOSTS[1], "Dwarven Tradeskill Signpost", DISPLAY["toy_dwarf"])):
         add(item, name, 15, 0, display, 3, bonding=1, spell=spell, description="Open for business!")
+
+    # Recipes: learned on use (the stock 483 "Learning" plus the craft spell, as every stock recipe),
+    # bound on pickup as Forever's. A gated one needs its side's trade faction at that rank.
+    products = set()
+    for r in recipes():
+        teach = dict(cls=9, subclass=RECIPE_SUBCLASS[r["skill"]], display=r["recipe_display"], quality=1,
+                     bonding=1, flags=64, spell=RECIPE_LEARNING, spell2=r["craft"], trigger2=6, skill=r["skill"],
+                     skill_rank=r["learn"], item_level=1, description="", charges=USED_UP)
+        horde_side = r["sides"] in ("both", "horde")
+        add(r["recipe"], r["name"], rep_faction=(HORDE if horde_side else ALLIANCE) if r["rank"] else 0,
+            rep_rank=r["rank"], **teach)
+        if r["alliance_item"]:
+            add(r["alliance_item"], r["name"], rep_faction=ALLIANCE, rep_rank=r["rank"], **teach)
+        # The product: one row however many recipes make it; a stock item keeps its own.
+        if r["product"] <= STOCK_ITEM_MAX or r["product"] in products:
+            continue
+        products.add(r["product"])
+        product = dict(level=r["required_level"], item_level=r["item_level"], stackable=r["stack"], sell=r["sell"])
+        if r["use"] and r["use"][0] == "drink":
+            product.update(spell=r["use_spells"][0], category=DRINK_CATEGORY, category_cooldown=1000, material=7,
+                           charges=USED_UP)
+        add(r["product"], r["product_name"], r["product_class"], r["product_subclass"], r["product_display"], 1,
+            **product)
+    if len({i["entry"] for i in out}) != len(out):
+        raise ValueError("an item id is given twice")
     return out
