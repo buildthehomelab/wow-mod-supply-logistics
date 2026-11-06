@@ -11,7 +11,9 @@ Released under the MIT License.
 
 import os
 
-from catalog import (COSTS, CURRENCY_ID, FACTIONS, MOUNT_SPELLS, PET_SPELLS, USE_SPELLS, KINDS, TEXT_CRATE, TEXT_QUILL, TEXT_RECEIPT, CHEF_GOODS, CONTAINER, COST_ID, CRATE_RETURN, FAVOR, MINIMULE, MULE_MOUNT, NPC, PROFESSION_VENDORS, QUILLS,
+from catalog import (COMPLETED_FORMS, FORMS, LICENSE_QUESTS, LICENSES, LOOK, ORC_SIGN_LOOKS, DWARF_BOARD_LOOKS, PACK_KODO,
+                     SIGNPOSTS, SIGNPOST_TOYS, SIGNS, SPELL_SIGNPOSTS, SPELL_SIGN_FORM, TABARDS, TEXT_SIGNPOST, TEXT_SIGNPOST_NONE,
+                     TEXT_SIGNPOST_NOT_YOURS, COSTS, CURRENCY_ID, FACTIONS, MOUNT_SPELLS, PET_SPELLS, USE_SPELLS, KINDS, TEXT_CRATE, TEXT_QUILL, TEXT_RECEIPT, CHEF_GOODS, CONTAINER, COST_ID, CRATE_RETURN, FAVOR, MINIMULE, MULE_MOUNT, NPC, PROFESSION_VENDORS, QUILLS,
                      RECEIPT, RECEIPT_REP, REINS, RETIRED_WRITS, SEALED, TIER_NAMES, TITLES, TREATS, WRIT_FAVOR, bundles, crates,
                      items, sealed_pay, writs)
 
@@ -21,6 +23,13 @@ UNINSTALL = os.path.normpath(os.path.join(os.path.dirname(OUT), "..", "uninstall
 REPEATABLE = 1                # quest_template_addon.SpecialFlags
 RETIRED_QUESTS = [quest for quest, _item in RETIRED_WRITS]
 RETIRED_ITEMS = [item for _quest, item in RETIRED_WRITS]
+GOSSIP = 1                    # npcflag
+POST_FLAGS = 2 | 256 | 512    # unit_flags: not attackable, immune to players and creatures
+SIGN_FLAGS = POST_FLAGS | 0x02000000   # and not selectable
+ART_DISPLAYS = (95310, 95339)  # the art's creature displays and models (pack.json, mod_supply_logistics_art.sql)
+TEXTS = (TEXT_CRATE, TEXT_RECEIPT, TEXT_QUILL, TEXT_SIGNPOST, TEXT_SIGNPOST_NONE, TEXT_SIGNPOST_NOT_YOURS)
+PROFESSION_LABELS = {171: "Alchemy", 164: "Blacksmithing", 185: "Cooking", 333: "Enchanting", 202: "Engineering",
+                     165: "Leatherworking", 197: "Tailoring"}
 HAND_IN_TEXT = "Another delivery! Fantastic. Set it over by the pile and we can discuss your compensation."
 
 
@@ -84,12 +93,18 @@ def main():
 
     # --- Item menus -----------------------------------------------------------------------------
     w("-- The text over the menus a Waylaid Crate, a Forged Delivery Receipt and a Forger's Quill open.")
-    w("DELETE FROM `npc_text` WHERE `ID` IN (%d, %d, %d);" % (TEXT_CRATE, TEXT_RECEIPT, TEXT_QUILL))
+    w("DELETE FROM `npc_text` WHERE `ID` IN (%s);" % ids(TEXTS))
     w("INSERT INTO `npc_text` (`ID`, `text0_0`, `Probability0`, `VerifiedBuild`) VALUES")
     w("(%d, %s, 1, 0)," % (TEXT_CRATE, q("The label lists what the shipment should have held. Fill the crate with any "
                                         "one of these bundles and it's sealed, ready for your faction's trade camp.")))
     w("(%d, %s, 1, 0)," % (TEXT_RECEIPT, q("Which crate gets the forged receipt? It goes back to the trade camp empty.")))
-    w("(%d, %s, 1, 0);" % (TEXT_QUILL, q("Which writ should be rewritten? A writ whose order you have accepted can't be.")))
+    w("(%d, %s, 1, 0)," % (TEXT_QUILL, q("Which writ should be rewritten? A writ whose order you have accepted can't be.")))
+    w("(%d, %s, 1, 0)," % (TEXT_SIGNPOST, q("Open for business! Which of your trades should the sign advertise? It "
+                                           "stands for half an hour.")))
+    w("(%d, %s, 1, 0)," % (TEXT_SIGNPOST_NONE, q("A fine signpost, and nothing to put on it: learn Alchemy, "
+                                                "Blacksmithing, Cooking, Enchanting, Engineering, Leatherworking or "
+                                                "Tailoring first.")))
+    w("(%d, %s, 1, 0);" % (TEXT_SIGNPOST_NOT_YOURS, q("Someone else's signpost. Their sign is theirs to choose.")))
     w("")
 
     # --- Items -----------------------------------------------------------------------------------
@@ -109,12 +124,12 @@ def main():
         row = {
             "entry": i["entry"], "class": i["cls"], "subclass": i["subclass"], "SoundOverrideSubclass": -1,
             "name": q(i["name"]), "displayid": i["display"], "Quality": i["quality"],
-            "Flags": 2048 if i["entry"] == FAVOR else i["flags"], "BuyCount": 1, "BuyPrice": 0,
-            "SellPrice": i["sell"], "InventoryType": 0, "AllowableClass": -1, "AllowableRace": -1,
-            "ItemLevel": max(1, i["level"]), "RequiredLevel": i["level"], "RequiredSkill": i["skill"],
+            "Flags": 2048 if i["entry"] == FAVOR else i["flags"], "BuyCount": 1, "BuyPrice": i["buy"],
+            "SellPrice": i["sell"], "InventoryType": i["inv_type"], "AllowableClass": -1, "AllowableRace": -1,
+            "ItemLevel": max(1, i["item_level"] or i["level"]), "RequiredLevel": i["level"], "RequiredSkill": i["skill"],
             "RequiredSkillRank": i["skill_rank"], "RequiredReputationFaction": i["rep_faction"],
             "RequiredReputationRank": i["rep_rank"], "maxcount": i["maxcount"], "stackable": i["stackable"],
-            "spellid_1": i["spell"], "spelltrigger_1": i["trigger"], "spellcharges_1": 0, "spellcooldown_1": -1,
+            "spellid_1": i["spell"], "spelltrigger_1": i["trigger"], "spellcharges_1": i["charges"], "spellcooldown_1": -1,
             "spellcategorycooldown_1": -1, "spellid_2": i["spell2"], "spelltrigger_2": i["trigger2"],
             "spellcooldown_2": -1, "spellcategorycooldown_2": -1, "bonding": i["bonding"],
             "description": q(i["description"]), "startquest": i["startquest"], "Material": i["material"],
@@ -125,18 +140,42 @@ def main():
     w("")
 
     # --- Creatures -------------------------------------------------------------------------------
-    w("-- The Minimule (Packmule Treat's companion) and the Pack Mule mount's look. The Pack Kodo mount")
-    w("-- rides stock creature 10636's look.")
-    w("DELETE FROM `creature_template_model` WHERE `CreatureID` IN (%d, %d);" % (MINIMULE, MULE_MOUNT))
-    w("DELETE FROM `creature_template` WHERE `entry` IN (%d, %d);" % (MINIMULE, MULE_MOUNT))
-    w("INSERT INTO `creature_template` (`entry`, `name`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, "
-      "`speed_run`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`, `movementId`, `VerifiedBuild`) VALUES")
-    w("(%d, 'Minimule', 1, 1, 188, 0, 1, 1.14286, 1, 768, 2048, 12, 2, 121, 0)," % MINIMULE)
-    w("(%d, 'Pack Mule', 1, 1, 35, 0, 1, 1.14286, 1, 768, 2048, 1, 2, 0, 0);" % MULE_MOUNT)
+    creature_rows = [
+        # entry, name, subname, faction, npcflag, unit_flags, type, flags_extra, movementId, ScriptName,
+        # display, its scale
+        (MINIMULE, "Minimule", "", 188, 0, 768, 12, 2, 121, "", LOOK["minimule"], 1),
+        (MULE_MOUNT, "Pack Mule", "", 35, 0, 768, 1, 2, 0, "", LOOK["pack_mule"], 1),
+        (PACK_KODO, "Pack Kodo", "", 35, 0, 768, 1, 2, 0, "", LOOK["pack_kodo"], 1),
+    ]
+    posts = [(SIGNPOSTS[0], "Orcish Tradeskill Signpost", LOOK["orc_post"]),
+             (SIGNPOSTS[1], "Dwarven Tradeskill Signpost", LOOK["dwarf_post"])]
+    for entry, name, display in posts:
+        creature_rows.append((entry, name, "", 35, GOSSIP, POST_FLAGS, 10, 2, 0, "npc_supply_signpost", display, 1))
+    for i, (skill, orcish, dwarven, board) in enumerate(SIGNS):
+        name = PROFESSION_LABELS[skill]
+        creature_rows.append((orcish, name, "", 35, 0, SIGN_FLAGS, 10, 2, 0, "", ORC_SIGN_LOOKS + i, 1))
+        creature_rows.append((dwarven, name, "", 35, 0, SIGN_FLAGS, 10, 2, 0, "", LOOK["dwarf_post"], 1))
+        creature_rows.append((board, name, "", 35, 0, SIGN_FLAGS, 10, 2, 0, "", DWARF_BOARD_LOOKS + i, 1))
+    creature_ids = [r[0] for r in creature_rows]
+    still = [r[0] for r in creature_rows if r[0] not in (MINIMULE, MULE_MOUNT, PACK_KODO, *SIGNPOSTS)]
+    w("-- The Minimule (Packmule Treat's companion), the Pack Mule and Pack Kodo mounts' looks, and the signpost toys'")
+    w("-- posts and signs (the posts are summoned by the toys' spells; the module puts the signs up). Their displays")
+    w("-- are Forever's models (data/looks.tsv, mod_supply_logistics_art.sql).")
+    w("DELETE FROM `creature_template_model` WHERE `CreatureID` IN (%s);" % ids(creature_ids))
+    w("DELETE FROM `creature_template_movement` WHERE `CreatureId` IN (%s);" % ids(creature_ids))
+    w("DELETE FROM `creature_template` WHERE `entry` IN (%s);" % ids(creature_ids))
+    w("INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `faction`, `npcflag`, "
+      "`speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`, `movementId`, "
+      "`ScriptName`, `VerifiedBuild`) VALUES")
+    w(",\n".join("(%d, %s, %s, 1, 1, %d, %d, 1, 1.14286, 1, %d, 2048, %d, %d, %d, %s, 0)"
+                 % (e, q(n), q(sub), fac, npcflag, uflags, ctype, extra, move, q(script))
+                 for e, n, sub, fac, npcflag, uflags, ctype, extra, move, script, _d, _s in creature_rows) + ";")
     w("INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, "
       "`VerifiedBuild`) VALUES")
-    w("(%d, 0, 14551, 0.4, 1, 0)," % MINIMULE)
-    w("(%d, 0, 14551, 1, 1, 0);" % MULE_MOUNT)
+    w(",\n".join("(%d, 0, %d, %g, 1, 0)" % (r[0], r[10], r[11]) for r in creature_rows) + ";")
+    w("-- The signs don't move (the posts turn to whoever put them up).")
+    w("INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`) VALUES")
+    w(",\n".join("(%d, 1, 0, 0, 1, 0, 0)" % e for e in still) + ";")
     w("")
 
     # --- Quests ----------------------------------------------------------------------------------
@@ -190,6 +229,47 @@ def main():
     w("")
     intake_quests = [quest for _item, quest in SEALED.values()] + [CRATE_RETURN]
     hand_ins = [(quest, item) for item, quest in SEALED.values()] + [(CRATE_RETURN, CONTAINER)]
+    # "Sign Me Up!": the Advertising License Application starts it and gives the forms; signed, they go to the
+    # Contract Coordinator with the application, for the side's signpost toy. Once per character.
+    w("-- \"Sign Me Up!\" (Forever's ids): the Advertising License Application starts it and hands over the forms.")
+    w("-- Sign them (use the pile), then bring both to the Contract Coordinator for the signpost toy.")
+    lcols = ["ID", "QuestType", "QuestLevel", "MinLevel", "QuestSortID", "QuestInfoID", "Flags", "AllowableRaces",
+             "StartItem", "RequiredItemId1", "RequiredItemCount1", "RequiredItemId2", "RequiredItemCount2",
+             "RewardItem1", "RewardAmount1", "LogTitle", "LogDescription", "QuestDescription", "QuestCompletionLog",
+             "VerifiedBuild"]
+    w("DELETE FROM `quest_template` WHERE `ID` IN (%s);" % ids(LICENSE_QUESTS))
+    w("INSERT INTO `quest_template` (%s) VALUES" % ", ".join("`%s`" % c for c in lcols))
+    llines = []
+    for side, (quest, license, toy) in enumerate(zip(LICENSE_QUESTS, LICENSES, SIGNPOST_TOYS)):
+        camp, coordinator, zone, races = (("Durotar Supply & Logistics", "Jornah in The Barrens", 17, 690),
+                                          ("Azeroth Commerce Authority branch's", "Elaine Compton in Redridge Mountains",
+                                           44, 1101))[side]
+        llines.append("(%d, 2, -1, 10, %d, 0, 0, %d, %d, %d, 1, %d, 1, %d, 1, 'Sign Me Up!', %s, %s, %s, 0)" % (
+            quest, zone, races, FORMS, license, COMPLETED_FORMS, toy,
+            q("Bring the completed form to %s." % coordinator),
+            q("Greetings, accomplished craftsperson!$B$BCompletion of this form will grant you non-exclusive, "
+              "revocable, and legally limited permission to display advertisement signs for your tradeskill(s) all "
+              "across Azeroth!$B$BOnce completed, please bring this to your local %s Contract Coordinator to begin "
+              "processing.$B$BHappy crafting!" % camp),
+            q("Return to %s." % coordinator)))
+    w(",\n".join(llines) + ";")
+    w("DELETE FROM `quest_template_addon` WHERE `ID` IN (%s);" % ids(LICENSE_QUESTS))
+    w("INSERT INTO `quest_template_addon` (`ID`, `ProvidedItemCount`) VALUES")
+    w(",\n".join("(%d, 1)" % quest for quest in sorted(LICENSE_QUESTS)) + ";")
+    w("DELETE FROM `quest_request_items` WHERE `ID` IN (%s);" % ids(LICENSE_QUESTS))
+    w("INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`, "
+      "`VerifiedBuild`) VALUES")
+    w(",\n".join("(%d, 1, 1, %s, 0)" % (quest, q("Every page signed? Initialed, dated, stamped? Let me see.")) for quest
+                 in sorted(LICENSE_QUESTS)) + ";")
+    w("DELETE FROM `quest_offer_reward` WHERE `ID` IN (%s);" % ids(LICENSE_QUESTS))
+    w("INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES")
+    w(",\n".join("(%d, 4, %s, 0)" % (quest, q("All in order. Your license is approved, and here is your signpost. "
+                                               "Put it up wherever you do business, and pick the trade it shows.$B$B"
+                                               "Happy crafting!")) for quest in sorted(LICENSE_QUESTS)) + ";")
+    w("DELETE FROM `creature_questender` WHERE `quest` IN (%s);" % ids(LICENSE_QUESTS))
+    w("INSERT INTO `creature_questender` (`id`, `quest`) VALUES")
+    w(",\n".join("(%d, %d)" % (npc, quest) for npc, quest in zip(NPC["coordinator"], LICENSE_QUESTS)) + ";")
+    w("")
     w("-- Each hand-in is offered only while you carry its crate (source type 19, quest available;")
     w("-- condition 2, item), so the Inventory Intake doesn't list all ten at once.")
     w("DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (%s);"
@@ -215,7 +295,12 @@ def main():
     stock = []
     for side in (0, 1):
         stock.append((NPC["officer"][side], TREATS[side], COST_ID[1500]))
-        stock.append((NPC["handler"][side], REINS[side], COST_ID[6000]))
+        stock.append((NPC["officer"][side], LICENSES[side], COST_ID[1200]))
+        stock.append((NPC["officer"][side], TABARDS[side], COST_ID[200]))
+        # As Forever, both handlers sell the Pack Kodo; the Horde's sells the Pack Mule too.
+        stock.append((NPC["handler"][side], REINS[0], COST_ID[6000]))
+        if side == 0:
+            stock.append((NPC["handler"][side], REINS[1], COST_ID[6000]))
         stock.append((NPC["scribe"][side], QUILLS[side], COST_ID[15]))
         stock.append((NPC["scribe"][side], RECEIPT, COST_ID[15]))
         for _title, _bit, item, skill, _text in TITLES:
@@ -224,7 +309,7 @@ def main():
             stock.append((NPC["chef"][side], good, 0))
     vendors = sorted({v for v, _i, _c in stock})
     w("-- What they sell, priced in Merchant's Favor (ItemExtendedCost, see mod_supply_logistics_dbc.sql).")
-    w("-- The recipes come later. Tabards and the shop-sign toy wait for their art.")
+    w("-- The recipes come later.")
     w("DELETE FROM `npc_vendor` WHERE `entry` IN (%s);" % ids(vendors))
     w("INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `VerifiedBuild`) VALUES")
     slots = {}
@@ -237,17 +322,26 @@ def main():
     w("-- Certifications are shown to everyone, red below 300 skill (item RequiredSkill); the module refuses")
     w("-- the purchase below 300, since the vendor checks reputation but not skill. Earlier versions hid them")
     w("-- with source type 23 conditions: this DELETE clears those rows.")
-    w("DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` IN (%s);" % ids(v for v, _i, _s in certs))
+    w("DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` IN (%s);"
+      % ids([v for v, _i, _s in certs] + list(NPC["officer"])))
+    w("-- The Advertising License Application is sold until \"Sign Me Up!\" is done (source type 23, vendor item;")
+    w("-- condition 8, quest rewarded, negated).")
+    w("INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, "
+      "`ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, "
+      "`NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES")
+    w(",\n".join("(23, %d, %d, 0, 0, 8, 0, %d, 0, 0, 1, 0, 0, '', 'mod-supply-logistics: license not yet used')"
+                  % (NPC["officer"][side], LICENSES[side], LICENSE_QUESTS[side]) for side in (0, 1)) + ";")
     w("")
 
     with open(OUT, "w", encoding="utf-8") as f:
         f.write("\n".join(out))
-    write_uninstall(item_ids, quest_ids, vendors)
+    write_uninstall(item_ids, quest_ids + list(LICENSE_QUESTS), vendors, creature_ids)
     print("wrote %s: %d items, %d quests, %d vendor rows" % (OUT, len(all_items), len(quest_ids), len(stock)))
 
 
-def write_uninstall(item_ids, quest_ids, vendors):
+def write_uninstall(item_ids, quest_ids, vendors, creature_ids):
     spells = [s[0] for s in USE_SPELLS] + [s[0] for s in MOUNT_SPELLS] + [s[0] for s in PET_SPELLS]
+    spells += [SPELL_SIGN_FORM, *SPELL_SIGNPOSTS]
     lines = [
         "-- mod-supply-logistics: removes every world row the module adds. Generated by tools/build_data.py.",
         "-- Run by hand. Items already in bags and mail become unknown items; the client patch keeps its rows.",
@@ -263,14 +357,18 @@ def write_uninstall(item_ids, quest_ids, vendors):
         "DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (%s);" % ids(quest_ids + RETIRED_QUESTS),
         "DELETE FROM `npc_vendor` WHERE `entry` IN (%s);" % ids(vendors),
         "DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` IN (%s);" % ids(vendors),
-        "DELETE FROM `creature_template_model` WHERE `CreatureID` IN (%d, %d);" % (MINIMULE, MULE_MOUNT),
-        "DELETE FROM `creature_template` WHERE `entry` IN (%d, %d);" % (MINIMULE, MULE_MOUNT),
-        "DELETE FROM `npc_text` WHERE `ID` IN (%d, %d, %d);" % (TEXT_CRATE, TEXT_RECEIPT, TEXT_QUILL),
+        "DELETE FROM `creature_template_model` WHERE `CreatureID` IN (%s);" % ids(creature_ids),
+        "DELETE FROM `creature_template_movement` WHERE `CreatureId` IN (%s);" % ids(creature_ids),
+        "DELETE FROM `creature_template` WHERE `entry` IN (%s);" % ids(creature_ids),
+        "DELETE FROM `npc_text` WHERE `ID` IN (%s);" % ids(TEXTS),
         "DELETE FROM `spell_dbc` WHERE `ID` IN (%s);" % ids(spells),
         "DELETE FROM `skilllineability_dbc` WHERE `ID` IN (%s);" % ids(s[0] for s in MOUNT_SPELLS + PET_SPELLS),
         "DELETE FROM `faction_dbc` WHERE `ID` IN (%s);" % ids(f[0] for f in FACTIONS),
         "DELETE FROM `chartitles_dbc` WHERE `ID` IN (%s);" % ids(t[0] for t in TITLES),
         "DELETE FROM `currencytypes_dbc` WHERE `ID` = %d;" % CURRENCY_ID,
+        "DELETE FROM `creaturedisplayinfo_dbc` WHERE `ID` BETWEEN %d AND %d;" % ART_DISPLAYS,
+        "DELETE FROM `creaturemodeldata_dbc` WHERE `ID` BETWEEN %d AND %d;" % ART_DISPLAYS,
+        "DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN %d AND %d;" % ART_DISPLAYS,
         "DELETE FROM `itemextendedcost_dbc` WHERE `ID` IN (%s);" % ids(COSTS),
         "",
     ]

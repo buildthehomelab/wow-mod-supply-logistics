@@ -1,0 +1,20 @@
+display	retail_display	model_fdid	form	tier	model	name	display_scale
+95310	145488		kodo	0	pack_kodo	Pack Kodo	
+95311	147969		mule	0	pack_mule	Minimule	0.35
+95312	147969		mule	0	pack_mule	Pack Mule	1
+95313	143353		sign	0	orc_sign_post	Orcish Tradeskill Signpost	
+95314	143356		sign	0	orc_sign_alchemy	Orcish Sign: Alchemy	
+95315	143357		sign	0	orc_sign_blacksmithing	Orcish Sign: Blacksmithing	
+95316	143358		sign	0	orc_sign_cooking	Orcish Sign: Cooking	
+95317	143359		sign	0	orc_sign_enchanting	Orcish Sign: Enchanting	
+95318	143361		sign	0	orc_sign_engineering	Orcish Sign: Engineering	
+95319	143362		sign	0	orc_sign_leatherworking	Orcish Sign: Leatherworking	
+95320	143363		sign	0	orc_sign_tailoring	Orcish Sign: Tailoring	
+95321	143365		sign	0	dwarf_signpost	Dwarven Tradeskill Signpost	
+95322		197475	sign	0	dwarf_sign_alchemy	Dwarven Sign: Alchemy	0.225
+95323		197486	sign	0	dwarf_sign_blacksmithing	Dwarven Sign: Blacksmithing	0.225
+95324		197494	sign	0	dwarf_sign_cooking	Dwarven Sign: Cooking	0.225
+95325		197500	sign	0	dwarf_sign_enchanting	Dwarven Sign: Enchanting	0.225
+95326		197502	sign	0	dwarf_sign_engineering	Dwarven Sign: Engineering	0.225
+95327		197520	sign	0	dwarf_sign_leatherworking	Dwarven Sign: Leatherworking	0.225
+95328		197542	sign	0	dwarf_sign_tailoring	Dwarven Sign: Tailoring	0.225

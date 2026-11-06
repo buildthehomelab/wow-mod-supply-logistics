@@ -5,8 +5,8 @@ same rows for the server.
     python3 build_patch.py --patch patch-z80-spells-and-items.MPQ --client /path/to/3.3.5a/client \\
         --out new/patch-z80-spells-and-items.MPQ --sql ../data/sql/db-world/mod_supply_logistics_dbc.sql
 
---patch is the patch that carries your realm's Spell.dbc, Item.dbc, SkillLineAbility.dbc and
-ItemExtendedCost.dbc. A patch MPQ replaces whole files, so the new rows go into its copies and every
+--patch is the patch that carries your realm's Spell.dbc, SpellIcon.dbc, Item.dbc, ItemDisplayInfo.dbc,
+SkillLineAbility.dbc and ItemExtendedCost.dbc. A patch MPQ replaces whole files, so the new rows go into its copies and every
 other file is carried over unchanged. Faction.dbc, CharTitles.dbc and CurrencyTypes.dbc come from the
 patch when it has them, else from the client's own (--client, its newest enUS locale patch), and the
 patch gains them. What gets added (ids in catalog.py):
@@ -14,8 +14,12 @@ patch gains them. What gets added (ids in catalog.py):
 - Spell.dbc: the use spells of the crates, writs, receipt, quill and Certifications (dummies the
   module's item scripts answer), the Pack Kodo and Pack Mule mounts (from Great Brown Kodo and Swift
   Brown Steed) and the Minimule companion (from Mr. Wiggles). SkillLineAbility.dbc puts the last three
-  on the Mounts and Companions lines, so they show in the Companions window.
+  on the Mounts and Companions lines, so they show in the Companions window. Also Sign Form (signs
+  the Advertising License's forms: creates the completed ones) and the two signpost toys' spells
+  (summon the post), which the server casts as they are.
+- SpellIcon.dbc: the icons of those three, which the client has no row for.
 - Item.dbc: every item of the module, so it has its icon everywhere.
+- ItemDisplayInfo.dbc: the tabards (Forever's textures), the license applications and the toys.
 - Faction.dbc: Durotar Supply and Logistics (2587, under Horde) and the Azeroth Commerce Authority
   (2586, under Alliance), hidden from the other side's races.
 - CharTitles.dbc: the six Certification titles.
@@ -38,8 +42,11 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dbcmpq  # noqa: E402
 from dbcmpq import add_string, read_dbc, string_at, write_dbc  # noqa: E402
-from catalog import (COSTS, CURRENCY_BIT, CURRENCY_CATEGORY, CURRENCY_ID, FACTIONS, FAVOR, MOUNT_SPELLS,  # noqa: E402
-                     PET_SPELLS, SKILL_COMPANIONS, SKILL_MOUNTS, TITLES, USE_SPELLS, items)
+from catalog import (COMPLETED_FORMS, COSTS, CURRENCY_BIT, CURRENCY_CATEGORY, CURRENCY_ID, FACTIONS, FAVOR,  # noqa: E402
+                     FORM_CAST_TIME, FORM_TEMPLATE, ITEM_DISPLAYS, MOUNT_SPELLS, PET_SPELLS, SIGNPOST_CAST_TIME,
+                     SIGNPOST_COOLDOWN, SIGNPOST_DURATION, SIGNPOST_RADIUS, SIGNPOSTS, SKILL_COMPANIONS, SKILL_MOUNTS,
+                     SPELL_ICONS, SPELL_SIGN_FORM, SPELL_SIGNPOSTS, SUMMON_WILD, TARGET_DEST_CASTER_FRONT, TITLES,
+                     USE_SPELLS, items)
 
 SPELL_FIELDS = 234
 F_CATEGORY, F_ATTRIBUTES, F_ATTRIBUTES_LAST = 1, 4, 11
@@ -56,6 +63,10 @@ EFFECT_DUMMY, TARGET_UNIT_CASTER, CAST_INSTANT, RANGE_SELF = 3, 1, 1, 1
 DUMMY_TEMPLATE = 54710                      # MOLL-E: a plain instant spell to start from
 LANG_MASK = 16712190                        # the enUS string plus the flags every stock row has
 FACTION_FIELDS, TITLE_FIELDS, IEC_FIELDS, CURRENCY_FIELDS, ITEM_FIELDS, SLA_FIELDS = 57, 37, 16, 4, 8, 14
+IDI_FIELDS, ICON_FIELDS = 25, 2
+F_RADIUS, F_ITEM_TYPE, F_MISC_B = 92, 107, 113
+EFFECT_SUMMON, EFFECT_CREATE_ITEM = 28, 24
+F_TOTEMS_AND_REAGENTS = range(50, 68)       # Totem[2], Reagent[8], ReagentCount[8]
 HIDDEN = 0x04 | 0x08 | 0x10                 # FACTION_FLAG_HIDDEN | INVISIBLE_FORCED | PEACE_FORCED
 OWN = 0x10                                  # PEACE_FORCED: never at war, shown once you have some
 UNSET = 0xFFFFFFFF
@@ -102,6 +113,22 @@ def effect_fields(index):
 def spell_icons(path):
     rows, strings, _ = read_dbc(path)
     return {string_at(strings, r[1]).split("\\")[-1].lower(): r[0] for r in rows}
+
+
+def add_spell_icons(path):
+    """SpellIcon.dbc rows for the icons the client has no row for (SPELL_ICONS); a row of the same id and
+    name is left as it is."""
+    rows, strings, fields = read_dbc(path)
+    if fields != ICON_FIELDS:
+        sys.exit("SpellIcon.dbc has %d fields, not %d" % (fields, ICON_FIELDS))
+    for icon_id, name in SPELL_ICONS:
+        path_name = "Interface\\Icons\\" + name
+        old = next((r for r in rows if r[0] == icon_id), None)
+        if old and string_at(strings, old[1]).lower() != path_name.lower():
+            sys.exit("SpellIcon.dbc row %d is taken by %r" % (icon_id, string_at(strings, old[1])))
+        put(rows, [icon_id, add_string(strings, path_name)])
+    write_dbc(path, rows, strings, fields)
+    print("SpellIcon.dbc: %d icons" % len(SPELL_ICONS))
 
 
 # --- Spell.dbc + SkillLineAbility.dbc -------------------------------------------------------------
@@ -152,6 +179,36 @@ def add_spells(files):
         row[F_GCD_CATEGORY], row[F_GCD] = 0, 0
         finish(row, name, description)
 
+    # Sign Form: the template's create-item cast, making the completed forms, in Forever's 10 seconds.
+    row = start(SPELL_SIGN_FORM, FORM_TEMPLATE, "Sign Form")
+    if row[F_EFFECT] != EFFECT_CREATE_ITEM or row[F_EFFECT + 1] or row[F_EFFECT + 2]:
+        sys.exit("Spell.dbc row %d isn't a plain create-item spell" % FORM_TEMPLATE)
+    row[F_ITEM_TYPE] = COMPLETED_FORMS
+    row[F_CAST_TIME] = FORM_CAST_TIME
+    for f in F_TOTEMS_AND_REAGENTS:             # the template's own medallion: the forms need nothing
+        row[f] = 0
+    row[F_ICON] = icons["inv_letter_03"]
+    finish(row, "Sign Form", "")
+
+    # The signpost toys: summon the post 2 yards in front for a minute, on a 30 minute cooldown.
+    for spell_id, post, name in zip(SPELL_SIGNPOSTS, SIGNPOSTS, ("Orcish Tradeskill Signpost", "Dwarven Tradeskill Signpost")):
+        row = start(spell_id, DUMMY_TEMPLATE, name)
+        row[F_CATEGORY] = 0
+        for f in range(F_ATTRIBUTES, F_ATTRIBUTES_LAST + 1):
+            row[f] = 0
+        row[F_CAST_TIME], row[F_RECOVERY], row[F_CATEGORY_RECOVERY], row[F_INTERRUPT] = (
+            SIGNPOST_CAST_TIME, SIGNPOST_COOLDOWN, 0, 15)
+        row[F_DURATION], row[F_RANGE] = SIGNPOST_DURATION, RANGE_SELF
+        for index in (0, 1, 2):
+            for f in effect_fields(index):
+                row[f] = 0
+        row[F_EFFECT], row[F_DIE_SIDES], row[F_TARGET_A] = EFFECT_SUMMON, 1, TARGET_DEST_CASTER_FRONT
+        row[F_RADIUS], row[F_MISC], row[F_MISC_B] = SIGNPOST_RADIUS, post, SUMMON_WILD
+        # Forever gives both toys' spells the orcish icon.
+        row[F_VISUAL], row[F_ICON], row[F_ACTIVE_ICON] = 0, icons["trade_archaeology_orc_bloodtext"], 0
+        row[F_GCD_CATEGORY], row[F_GCD] = 133, 1500
+        finish(row, name, "Display a sign for a profession you have learned for 30 min.")
+
     abilities_path = dbc_path(files, "SkillLineAbility")
     abilities, ability_strings, ability_fields = read_dbc(abilities_path)
     if ability_fields != SLA_FIELDS:
@@ -184,9 +241,30 @@ def add_items(files):
         sys.exit("Item.dbc has %d fields, not %d" % (fields, ITEM_FIELDS))
     ours = items()
     for i in ours:
-        put(rows, [i["entry"], i["cls"], i["subclass"], UNSET, i["material"] & 0xFFFFFFFF, i["display"], 0, 0])
+        put(rows, [i["entry"], i["cls"], i["subclass"], UNSET, i["material"] & 0xFFFFFFFF, i["display"], i["inv_type"], 0])
     write_dbc(path, rows, strings, fields)
     print("Item.dbc: %d items" % len(ours))
+
+
+def add_item_displays(path):
+    """ItemDisplayInfo.dbc rows: an icon, and for the tabards their textures and geoset group."""
+    rows, strings, fields = read_dbc(path)
+    if fields != IDI_FIELDS:
+        sys.exit("ItemDisplayInfo.dbc has %d fields, not %d" % (fields, IDI_FIELDS))
+    for display, icon, textures, geoset, sound in ITEM_DISPLAYS:
+        old = next((r for r in rows if r[0] == display), None)
+        if old and string_at(strings, old[5]).lower() != icon.lower():
+            sys.exit("ItemDisplayInfo.dbc row %d is taken by %r" % (display, string_at(strings, old[5])))
+        row = [0] * fields
+        row[0] = display
+        row[5] = add_string(strings, icon)
+        row[7] = geoset
+        row[12] = sound
+        for field, name in textures.items():
+            row[field] = add_string(strings, name)
+        put(rows, row)
+    write_dbc(path, rows, strings, fields)
+    print("ItemDisplayInfo.dbc %d-%d" % (min(d[0] for d in ITEM_DISPLAYS), max(d[0] for d in ITEM_DISPLAYS)))
 
 
 # --- Faction, CharTitles, CurrencyTypes, ItemExtendedCost -----------------------------------------
@@ -348,11 +426,13 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         files = dbcmpq.unpack(args.patch, tmp)
-        for name in ("Spell", "SpellIcon", "Item", "SkillLineAbility", "ItemExtendedCost"):
+        for name in ("Spell", "SpellIcon", "Item", "SkillLineAbility", "ItemExtendedCost", "ItemDisplayInfo"):
             if not dbc_path(files, name):
                 sys.exit("%s has no %s.dbc" % (args.patch, name))
+        add_spell_icons(dbc_path(files, "SpellIcon"))
         spells, abilities = add_spells(files)
         add_items(files)
+        add_item_displays(dbc_path(files, "ItemDisplayInfo"))
         factions = add_factions(need(files, "Faction", args.client, tmp))
         titles = add_titles(need(files, "CharTitles", args.client, tmp))
         currency = add_currency(need(files, "CurrencyTypes", args.client, tmp))

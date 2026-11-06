@@ -75,9 +75,11 @@ server's reputation rates and racial bonuses like any quest reputation.
 
 | From | Item | Favor | Needs |
 | --- | --- | --- | --- |
-| Supply Officer | Packmule Treat: the Minimule companion | 1,500 | Revered |
-| Kodo Handler (Horde) | Reins of the Pack Kodo: a 100% ground mount | 6,000 | Exalted, Journeyman Riding |
-| Mule Handler (Alliance) | Reins of the Pack Mule: a 100% ground mount | 6,000 | Exalted, Journeyman Riding |
+| Supply Officer | Packmule Treat: the Minimule companion | 1,500 | |
+| Supply Officer | Advertising License Application (see below) | 1,200 | Honored |
+| Supply Officer | Durotar Supply and Logistics Tabard (Horde), Azeroth Commerce Authority Tabard (Alliance) | 200 | Exalted |
+| Kodo Handler (Horde), Mule Handler (Alliance) | Reins of the Pack Kodo: a 100% ground mount | 6,000 | Journeyman Riding |
+| Kodo Handler (Horde) | Reins of the Pack Mule: a 100% ground mount | 6,000 | Journeyman Riding |
 | Uncertified Scribe | Forger's Quill | 15 | Honored |
 | Uncertified Scribe | Forged Delivery Receipt | 15 | |
 | Each profession vendor (red below 300 skill) | Its Certification: the title "the Alchemist", "the Blacksmith", "the Enchanter", "the Engineer", "the Leatherworker" or "the Tailor" | 1,000 | 300 skill |
@@ -87,9 +89,21 @@ it has 300 skill in the profession, racial bonuses included (checked at login an
 changes, so unlearning the profession takes it away). The chef sells
 Forever's cooking supplies for coin.
 
+The Pack Kodo, the pack mule (the Minimule and the Pack Mule mount), the tabards and the signposts are
+WoW Forever's own art, converted for 3.3.5a (see The client patch, below). As in Forever, both sides ride
+the Pack Kodo; Forever has no Pack Mule mount, and here the Horde's Kodo Handler sells one too, Forever's
+pack mule at full size.
+
+**The Advertising License.** The application starts "Sign Me Up!" and comes with a Massive Pile of
+Forms. Use the pile to sign them (10 seconds), then bring the completed forms and the application to the
+**Contract Coordinator**. The reward is a **Tradeskill Signpost**: Orcish for the Horde, Dwarven for the
+Alliance, kept in your bags (30 minutes' cooldown). Using it puts the signpost up in front of you for a
+minute; talk to it and pick one of your professions (Alchemy, Blacksmithing, Cooking, Enchanting,
+Engineering, Leatherworking or Tailoring), and that profession's sign stands there for half an hour.
+Only the one who put it up can choose, and a new sign takes your last one down.
+
 **Not yet:** the 316 recipes the profession vendors sell for Favor in Forever (the prices are already
-in the extended costs), the two tabards and the Advertising License (a shop-sign toy), which need
-their art.
+in the extended costs).
 
 ## Install
 
@@ -100,7 +114,8 @@ their art.
    `db-characters` (the account titles).
 3. **The client patch.** Players need the same spells, items, factions, titles, currency and prices,
    or the items show question marks, nothing can be used, prices are blank and the reputation and
-   titles don't show. Add them to the patch that carries your realm's `Spell.dbc` and `Item.dbc`:
+   titles don't show. Add them to the patch that carries your realm's `Spell.dbc`, `SpellIcon.dbc`, `Item.dbc`,
+   `ItemDisplayInfo.dbc`, `SkillLineAbility.dbc` and `ItemExtendedCost.dbc`:
 
    ```bash
    python3 tools/build_patch.py --patch your-spell-patch.MPQ --client /path/to/3.3.5a/client \
@@ -109,6 +124,22 @@ their art.
 
    It needs StormLib (`STORMLIB`, default `/usr/local/lib/libstorm.dylib`). The `--sql` output is the
    committed file; write it again only if you change `tools/catalog.py`.
+
+   The models, the tabards' textures and the icons the client lacks come from WoW Forever's own build,
+   in a patch of their own with the CreatureDisplayInfo.dbc and CreatureModelData.dbc rows they need:
+
+   ```bash
+   python3 tools/build_art.py --creatures /path/to/wow-mod-retail-creatures --cache /path/to/forever-cache \
+       --dbc /path/to/creature-dbcs --client /path/to/3.3.5a/client --work /tmp/art --out new/your-art-patch.MPQ
+   ```
+
+   It runs [wow-mod-retail-creatures](https://github.com/buildthehomelab/wow-mod-retail-creatures)' converter
+   on this repo's `pack.json` and `data/looks.tsv`, reading Forever's files from Blizzard's CDN. `--dbc`
+   holds the CreatureDisplayInfo.dbc, CreatureModelData.dbc, AnimationData.dbc and ParticleColor.dbc your
+   players have (from the patch that ships them last, if any), and the art patch has to load after that
+   one. Ship it with the module's SQL: the Minimule and both mounts use its looks.
+   `data/sql/db-world/mod_supply_logistics_art.sql` is its server copy; write it again only if you
+   change `data/looks.tsv`.
 4. **The NPCs.** The module gives Forever's camp NPCs their jobs, but doesn't spawn them: create and
    spawn these creature entries with your own SQL, wherever your trade camps are. With
    `SupplyLogistics.CampNpcFlags = 1` the module adds their quest giver and vendor flags to their
@@ -140,15 +171,18 @@ hand-in are in `tools/catalog.py`; change them there and run `tools/build_data.p
 | `tools/catalog.py` | Every id, item, spell, price and payout, for both builders |
 | `tools/build_data.py` | Writes the world SQL and the uninstall SQL |
 | `tools/build_patch.py` | Adds the client rows to a patch and writes their server copy |
+| `tools/build_art.py`, `pack.json`, `data/looks.tsv` | Converts Forever's models and adds the tabards' textures and icons: the art patch and its server copy |
 | `tools/fetch_forever.py` | Rebuilds `data/*.tsv` from Forever's public data, for a newer Forever build |
 
 ## Ids
 
 Forever's own ids where Forever has the thing: items 248682-248773, 262764-262917, 264011-264160,
-271621-271627 and 284664; quests 91899-91907, 93862 and 94004-94360; factions 2586 and 2587; currency
-3402. Its own: items, spells and extended costs 90740-90759 (Merchant's Favor is 90740: the server
-indexes currencies by item id, so keep it low); creatures 9531100-9531101 and npc_text 9531100-9531102;
-titles 193-198 (title bits 158-163); reputation indexes 108 and 109; currency bit 33.
+270868-270897, 271621-271627 and 284664; quests 91899-91907, 93862, 94004-94360, 95816 and 95819;
+creatures 262713-262734 (the signposts and signs); factions 2586 and 2587; currency 3402. Its own: items,
+spells, spell icons, item displays and extended costs 90740-90759 (Merchant's Favor is 90740: the server
+indexes currencies by item id, so keep it low); creatures 9531100-9531109 and npc_text 9531100-9531105;
+creature displays and models 95310-95339; titles 193-198 (title bits 158-163); reputation indexes 108 and
+109; currency bit 33.
 
 `build_patch.py` takes Faction.dbc and CharTitles.dbc from your patch when it has them, and
 CurrencyTypes.dbc from the client otherwise: if another of your patches ships its own copy of one of
@@ -157,11 +191,14 @@ these, build on that copy, or the patch loaded last hides the other's rows.
 ## Requirements
 
 AzerothCore 3.3.5a. With [mod-playerbots](https://github.com/mod-playerbots/mod-playerbots), bots
-get no crates or writs. Python 3 and StormLib for the client patch.
+get no crates or writs. Python 3 and StormLib for the client patch; for the art patch also a checkout of
+wow-mod-retail-creatures (with its `model_fdid` looks) and network access to Blizzard's CDN and
+wago.tools.
 
 ## Credits
 
-- WoW Forever's Supply and Logistics, its names and text belong to Blizzard Entertainment.
+- WoW Forever's Supply and Logistics, its names, text, models and textures belong to Blizzard
+  Entertainment. The art patch is built from Blizzard's own files; none are in this repo.
 - `data/writs.tsv` uses data from [Efficient Games](https://efficient.games)' EG Link output,
   licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Changed: the Craftsman's
   Writs, filtered and tiered, with the 3.3.5a recipe that makes each item.
