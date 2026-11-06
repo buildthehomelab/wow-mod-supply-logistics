@@ -604,7 +604,7 @@ namespace SupplyLogistics
         GiveItem(player, next->item);
     }
 
-    // Skill is counted the way the vendor's condition and the item's requirement count it: with permanent
+    // Skill is counted the way the vendor's purchase check and the item's requirement count it: with permanent
     // (racial) bonuses, without temporary ones.
     // --- Certifications ------------------------------------------------------------------------------
 
@@ -658,6 +658,15 @@ namespace SupplyLogistics
         player->DestroyItemCount(item->GetEntry(), 1, true);
         GrantTitle(player, *title, player->GetBaseSkillValue(title->skill) >= TITLE_SKILL);
         Say(player, "Title unlocked for every character on your account with 300 skill in the profession.");
+    }
+
+    bool RefuseCertificationBuy(Player* player, uint32 item)
+    {
+        auto title = std::find_if(TITLES.begin(), TITLES.end(), [item](Title const& t) { return t.item == item; });
+        if (title == TITLES.end() || player->IsGameMaster() || player->GetBaseSkillValue(title->skill) >= TITLE_SKILL)
+            return false;
+        player->SendEquipError(EQUIP_ERR_CANT_EQUIP_SKILL, nullptr, nullptr, item);
+        return true;
     }
 
     // --- Camp NPCs -----------------------------------------------------------------------------------
