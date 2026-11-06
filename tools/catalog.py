@@ -259,7 +259,7 @@ CHEF_RECIPES = [21099, 21219]          # Smoked Sagefish, Sagefish Delight
 # Brain Food's mana half (a plain regen aura plus a periodic trigger into Well Fed: a stock drink's
 # own ids are hard-coded in the core, so copying one of those would restore nothing), with the
 # duration and amount of the stock drink Forever's triggers.
-CRAFT_TEMPLATE = {185: 25704, 171: 17571}   # Smoked Sagefish (at a fire), Elixir of the Mongoose
+CRAFT_TEMPLATE = {185: 25704, 171: 17571, 202: 3918}   # Smoked Sagefish (at a fire), Mongoose, Rough Blasting Powder
 DRINK_TEMPLATE, WELL_FED_TEMPLATE = 25703, 25694
 DRINK_ICON, WELL_FED_ICON = "inv_drink_07", "inv_misc_food_01"     # Forever's (132794, 133943)
 STAT_NAMES = {4: "Spirit"}
@@ -416,13 +416,66 @@ def recipes():
 
 
 def new_displays():
-    """(display id, icon) for the ItemDisplayInfo rows the recipes add."""
+    """(display id, icon, template display) for the ItemDisplayInfo rows the recipes and materials add."""
     seen = {}
     for r in recipes():
         for icon, display in ((r["recipe_icon"], r["recipe_display"]), (r["product_icon"], r["product_display"])):
             if icon not in ICON_DISPLAYS:
-                seen[display] = icon
-    return sorted(seen.items())
+                seen[display] = (icon, ICON_DISPLAY_TEMPLATE)
+    for m in materials():
+        seen[m["display"]] = (m["icon"], MATERIAL_DISPLAY_TEMPLATE[m["cls"], m["subclass"]])
+    return sorted((d, icon, template) for d, (icon, template) in seen.items())
+
+
+# --- Scarce materials ------------------------------------------------------------------------------
+
+# data/materials.tsv (fetch_materials.py): Forever's Scarce materials, bonus drops with gathering and
+# skinning (the module's C++ adds them to the loot), and the dyes, acid and sandpaper alchemists and
+# engineers learn to make from them at their trainers. Forever's item ids; ours in 91950-91999.
+MATERIAL_BLOCK = (91950, 50)
+SCARCE_KINDS = {"ore": 1, "herb": 1, "skin": 2}     # mod_supply_logistics_scarce.kind: 1 a node, 2 skinning
+# Icon-only displays to copy, by item class and subclass: each carries its kind's pickup sound.
+MATERIAL_DISPLAY_TEMPLATE = {(7, 7): 4681, (7, 9): 7396, (7, 6): 7382, (7, 11): 7349, (7, 1): 7137}
+# Ore, Herb, Leather, Red Dye's liquid, Rough Blasting Powder's part
+# The bags they fit in, as the stock ones of each kind: Mining, Herb, Leatherworking (leather and dyes),
+# Engineering.
+MATERIAL_BAG_FAMILY = {(7, 7): 1024, (7, 9): 32, (7, 6): 8, (7, 11): 8, (7, 1): 128}
+
+
+def materials():
+    rows = read_tsv("materials.tsv")
+    for r in rows:
+        for k in ("item", "cls", "subclass", "quality", "item_level", "stack", "sell", "material", "display"):
+            r[k] = int(r[k])
+        for k in ("skill", "learn", "cost", "yellow", "grey", "craft"):
+            r[k] = int(r[k]) if r[k] else 0
+        r["chance"] = float(r["chance"]) if r["chance"] else 0.0
+        r["sources"] = r["sources"].split(";") if r["sources"] else []
+        r["reagents"] = [tuple(int(x) for x in p.split(":")) for p in r["reagents"].split(",")] if r["reagents"] else []
+        base, size = MATERIAL_BLOCK
+        for x in ([r["craft"]] if r["craft"] else []) + [r["display"]]:
+            if not base <= x < base + size:
+                raise ValueError("material %d: id %d outside its block" % (r["item"], x))
+        if (r["kind"] == "craft") != bool(r["craft"]):
+            raise ValueError("material %d: a craft id only for crafted materials" % r["item"])
+    return rows
+
+
+def scarce_sources():
+    """(item, kind, node name, min level, max level, chance) for the module's table."""
+    out = []
+    for m in materials():
+        if m["kind"] == "skin":
+            for band in m["sources"]:
+                low, high = (int(x) for x in band.split("-"))
+                out.append((m["item"], SCARCE_KINDS["skin"], "", low, high, m["chance"]))
+        elif m["kind"] in SCARCE_KINDS:
+            out += [(m["item"], SCARCE_KINDS[m["kind"]], node, 0, 0, m["chance"]) for node in m["sources"]]
+    return out
+
+
+def material_crafts():
+    return [m for m in materials() if m["kind"] == "craft"]
 
 
 def buff_auras(r):
@@ -650,6 +703,11 @@ def items():
                            material=7 if kind == "drink" else 3, charges=USED_UP)
         add(r["product"], r["product_name"], r["product_class"], r["product_subclass"], r["product_display"], 1,
             **product)
+    # Scarce materials and what's made from them: trade goods, as Forever's.
+    for m in materials():
+        add(m["item"], m["name"], m["cls"], m["subclass"], m["display"], m["quality"], stackable=m["stack"],
+            sell=m["sell"], item_level=m["item_level"], material=m["material"], description=m["description"],
+            bag_family=MATERIAL_BAG_FAMILY[m["cls"], m["subclass"]])
     if len({i["entry"] for i in out}) != len(out):
         raise ValueError("an item id is given twice")
     return out

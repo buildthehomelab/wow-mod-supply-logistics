@@ -169,6 +169,45 @@ Forever's tables put no reputation on the recipes themselves (its vendors gate t
 isn't public), so the ranks are ours, by price. A gated recipe is two items: Forever's for the Horde
 and a copy for the Alliance, since an item can ask for one faction only.
 
+### Scarce materials
+
+Forever's new crafting materials, which many of its recipes ask for. They come as a bonus with
+ordinary gathering and skinning, for real players only (bots get none):
+
+| Material | Comes with | Chance |
+| --- | --- | --- |
+| Pyrite | Copper, Tin, Silver and Iron veins | 1% a mining |
+| Bauxite | Gold and Mithril veins | 1% a mining |
+| Frilled Lichen | Earthroot, Mageroyal, Briarthorn, Bruiseweed, Stranglekelp, Wild Steelbloom, Kingsblood | 1.5% a herb |
+| Rosecap | Liferoot, Fadeleaf, Goldthorn, Khadgar's Whisker, Wintersbite, Grave Moss | 1.5% a herb |
+| Stranglevine | Firebloom and every herb above it, Black Lotus included | 1.5% a herb |
+| Pristine Leather | Skinning a creature of level 10-29 | 1.5% |
+| Pristine Hide | Level 30-44 | 1.5% |
+| Pristine Scale | Level 45 and up | 1.5% |
+
+Generous next to Forever, on purpose for a small realm: Wowhead's player data has 0.1-0.5% for Pyrite,
+Frilled Lichen and Bauxite on the same nodes (the Ooze Covered veins included). Rosecap, Stranglevine
+and the Pristine leathers have no public numbers, so their sources follow the items' levels. Only
+leather skinning counts, not creatures an herbalist, miner or engineer loots.
+`SupplyLogistics.Scarce.Rate` scales them all.
+
+Alchemy and Engineering trainers teach what's made from them, at Forever's skills and costs:
+
+| Craft | Profession | Learn at | Cost | From |
+| --- | --- | --- | --- | --- |
+| Cerulean Dye | Alchemy | 40 | 1s 50c | 2 Frilled Lichen, Empty Vial |
+| Sulfuric Acid | Alchemy | 40 | 1s 50c | 2 Pyrite, Empty Vial |
+| Magenta Dye | Alchemy | 120 | 15s | 2 Rosecap, Leaded Vial |
+| Viridian Dye | Alchemy | 215 | 1g | 2 Stranglevine, Crystal Vial |
+| Sandpaper | Engineering | 120 | 5s | 2 Bauxite, Bolt of Linen Cloth |
+
+Every trainer of the profession whose own recipes reach that skill teaches these (not the specialists').
+The rows are added to whichever trainers the realm has when the module's SQL runs. Forever's Viridian Dye also needs its
+Fermenter camp object, which this world has none of, so here it needs nothing.
+
+**Not yet:** Forever's Mount Hyjal materials (Heavy Thorium, Torbernite, Fel Crystal, Legionite and
+Azerothium bars, Pitchblende, Death Lotus, Marefoil), which come from its new zone.
+
 **Not yet:** the other 282 recipes (Engineering, Enchanting, Blacksmithing, Tailoring and
 Leatherworking; the prices are already in the extended costs).
 

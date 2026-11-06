@@ -185,20 +185,31 @@ namespace
         void OnAfterConfigLoad(bool /*reload*/) override
         {
             LoadConfig();
+            LoadScarceConfig();
         }
 
         void OnStartup() override
         {
             LoadData();
+            LoadScarce();
             SetTemplateNpcFlags();
+        }
+    };
+
+    class SupplyLogisticsMiscScript : public MiscScript
+    {
+    public:
+        SupplyLogisticsMiscScript() : MiscScript("SupplyLogisticsMiscScript", { MISCHOOK_ON_AFTER_LOOT_TEMPLATE_PROCESS }) { }
+
+        void OnAfterLootTemplateProcess(Loot* loot, LootTemplate const* tab, LootStore const& store, Player* lootOwner,
+            bool /*personal*/, bool /*noEmptyError*/, uint16 /*lootMode*/) override
+        {
+            OnLootFilled(loot, tab, store, lootOwner);
         }
     };
 }
 
-// Potion of Venomous Blood (Forever's Alchemy recipe). The potion's buff holds its doses (the spell's
-// stack amount); each bleed tick you take moves one to the nearest enemy within its second effect's
-// yards, as its first effect's trigger spell. Ids come from the spells, which tools/catalog.py writes.
-// The nearest unit the owner may attack with the dose (not an unflagged player of the other faction,
+// The nearest unit the owner may attack with a spell (not an unflagged player of the other faction,
 // not one behind a wall).
 class NearestValidEnemy
 {
@@ -220,6 +231,9 @@ private:
     float _range;
 };
 
+// Potion of Venomous Blood (Forever's Alchemy recipe). The potion's buff holds its doses (the spell's
+// stack amount); each bleed tick you take moves one to the nearest enemy within its second effect's
+// yards, as its first effect's trigger spell. Ids come from the spells, which tools/catalog.py writes.
 class spell_supply_venomous_blood : public AuraScript
 {
     PrepareAuraScript(spell_supply_venomous_blood);
@@ -303,4 +317,5 @@ void AddSupplyLogisticsScripts()
     new SupplyLogisticsCreatureScript();
     new SupplyLogisticsWorldScript();
     AddSupplyLogisticsSignScripts();
+    new SupplyLogisticsMiscScript();
 }

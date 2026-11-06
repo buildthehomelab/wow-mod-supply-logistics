@@ -47,9 +47,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dbcmpq  # noqa: E402
 from dbcmpq import add_string, read_dbc, string_at, write_dbc  # noqa: E402
 from catalog import (BUFF_TEMPLATE, CLOUD_TEMPLATE, CONE_TEMPLATE, CRAFT_TEMPLATE, DRINK_ICON, DRINK_TEMPLATE,  # noqa: E402
-                     ELIXIR_DURATION_MS, ICON_DISPLAYS, ICON_DISPLAY_TEMPLATE, ITEM_CATEGORY, PROC_FLAG_TAKEN_PERIODIC,
+                     ELIXIR_DURATION_MS, ICON_DISPLAYS, ITEM_CATEGORY, PROC_FLAG_TAKEN_PERIODIC,
                      RECIPE_BLOCKS, STAT_NAMES, WELL_FED_ICON, WELL_FED_TEMPLATE, buff_auras, elixir_group, new_displays,
-                     product_kind, recipes)
+                     material_crafts, product_kind, recipes)
 from catalog import (COMPLETED_FORMS, COSTS, CURRENCY_BIT, CURRENCY_CATEGORY, CURRENCY_ID, FACTIONS, FAVOR,  # noqa: E402
                      FORM_CAST_TIME, FORM_TEMPLATE, ITEM_DISPLAYS, MOUNT_SPELLS, PET_SPELLS, SIGNPOST_CAST_TIME,
                      SIGNPOST_COOLDOWN, SIGNPOST_DURATION, SIGNPOST_RADIUS, SIGNPOSTS, SKILL_COMPANIONS, SKILL_MOUNTS,
@@ -304,7 +304,11 @@ def add_spells(files, client_tables):
             lines.append(next(a for a in abilities if a[0] == spell_id))
 
     looks = Looks(files, client_tables, icons)
-    for r in recipes():
+    # The materials' crafts look like a recipe's craft to the code below: no recipe item, no use.
+    crafts = [dict(craft=m["craft"], skill=m["skill"], reagents=m["reagents"], product=m["item"], made=1,
+                   product_name=m["name"], use=[], grey=m["grey"], yellow=m["yellow"], recipe=m["item"])
+              for m in material_crafts()]
+    for r in recipes() + crafts:
         add_recipe_spells(r, by_id, icons, start, finish, looks)
         old = next((a for a in abilities if a[0] == r["craft"]), None)
         if old and old[2] != r["craft"]:
@@ -495,10 +499,11 @@ def add_displays(files, client):
         r = by_id.get(display)
         if not r or string_at(strings, r[DISPLAY_ICON]).lower() != icon:
             sys.exit("ItemDisplayInfo.dbc %d isn't the icon %s" % (display, icon))
-    template = by_id.get(ICON_DISPLAY_TEMPLATE)
-    if not template or any(template[1:DISPLAY_ICON]):
-        sys.exit("ItemDisplayInfo.dbc %d isn't an icon-only row" % ICON_DISPLAY_TEMPLATE)
-    blps = {"Interface\\Icons\\%s.blp" % icon for _d, icon in new_displays()}
+    for template_id in {t for _d, _i, t in new_displays()}:
+        template = by_id.get(template_id)
+        if not template or any(template[1:DISPLAY_ICON]):
+            sys.exit("ItemDisplayInfo.dbc %d isn't an icon-only row" % template_id)
+    blps = {"Interface\\Icons\\%s.blp" % icon for _d, icon, _t in new_displays()}
     lacking = {b for b in blps if b.lower() not in {f.lower() for f in files}}
     if client:
         lacking = dbcmpq.client_has(client, lacking)
@@ -507,11 +512,11 @@ def add_displays(files, client):
         lacking = set()
     if lacking:
         sys.exit("no icon file for %s" % ", ".join(sorted(lacking)))
-    for display, icon in new_displays():
+    for display, icon, template_id in new_displays():
         old = by_id.get(display)
-        if old and string_at(strings, old[DISPLAY_ICON]).lower() != icon:
+        if old and string_at(strings, old[DISPLAY_ICON]).lower() != icon.lower():
             sys.exit("ItemDisplayInfo.dbc row %d is taken" % display)
-        row = list(template)
+        row = list(by_id[template_id])
         row[0], row[DISPLAY_ICON] = display, add_string(strings, icon)
         put(rows, row)
         print("ItemDisplayInfo.dbc %d %s" % (display, icon))

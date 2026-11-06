@@ -1,0 +1,14 @@
+item	name	cls	subclass	quality	item_level	stack	sell	material	icon	description	kind	sources	chance	skill	learn	cost	yellow	grey	reagents	craft	display
+249391	Pyrite	7	7	2	25	20	100	0	inv_ore_pyrite_nugget		ore	Copper Vein;Tin Vein;Silver Vein;Ooze Covered Silver Vein;Iron Deposit;Ooze Covered Iron Deposit	1.0								91950
+249425	Bauxite	7	7	2	45	20	250	0	inv_ore_manticytenugget		ore	Gold Vein;Ooze Covered Gold Vein;Mithril Deposit;Ooze Covered Mithril Deposit	1.0								91951
+249399	Frilled Lichen	7	9	2	25	20	30	2	inv_misc_food_109_honeylichen		herb	Earthroot;Mageroyal;Briarthorn;Bruiseweed;Stranglekelp;Wild Steelbloom;Kingsblood	1.5								91952
+249424	Rosecap	7	9	2	45	20	95	2	inv_misc_herb_talandrasrose		herb	Liferoot;Fadeleaf;Goldthorn;Khadgar's Whisker;Wintersbite;Grave Moss	1.5								91953
+249274	Stranglevine	7	9	2	60	20	250	7	inv_herbalism_70_nightmaredreamleaf		herb	Firebloom;Purple Lotus;Arthas' Tears;Sungrass;Blindweed;Ghost Mushroom;Gromsblood;Golden Sansam;Dreamfoil;Mountain Silversage;Plaguebloom;Icecap;Black Lotus	1.5								91954
+249427	Pristine Leather	7	6	2	25	20	125	8	item_pristinehide		skin	10-29	1.5								91955
+249428	Pristine Hide	7	6	2	45	20	250	8	inv_leatherworking_90_leatherhide		skin	30-44	1.5								91956
+249429	Pristine Scale	7	6	2	60	20	375	8	inv_misc_monsterscales_09		skin	45-255	1.5								91957
+249409	Cerulean Dye	7	11	2	25	20	75	3	inv_inscription_inkcerulean01	Crafted by alchemists.	craft			171	40	150	50	90	249399:2,3371:1	91950	91958
+249430	Magenta Dye	7	11	2	45	20	250	3	inv_inscription_inkpurple02	Crafted by alchemists.	craft			171	120	1500	130	155	249424:2,3372:1	91951	91959
+249431	Viridian Dye	7	11	2	60	20	375	3	inv_inscription_inkgreen01	Crafted by alchemists.	craft			171	215	10000	230	270	249274:2,8925:1	91952	91960
+249410	Sulfuric Acid	7	11	2	25	20	125	3	trade_alchemy	Crafted by alchemists.	craft			171	40	150	50	90	249391:2,3371:1	91953	91961
+249432	Sandpaper	7	1	2	45	20	250	3	inv_inscription_papyrus	Crafted by engineers.	craft			202	120	500	130	155	249425:2,2996:1	91954	91962
