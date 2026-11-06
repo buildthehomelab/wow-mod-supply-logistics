@@ -324,14 +324,16 @@ def items():
         add(item, "%s Certification" % PROFESSION_NAMES[skill], 15, 4, DISPLAY["certification"], 2, bonding=1,
             skill=skill, skill_rank=300, spell=SPELL_CERTIFY, script="item_supply_certification",
             description="Unlocks the title \"%s\" for your account." % text.replace("%s ", ""))
-    for faction, item, spell, name, display in (
-            (HORDE, REINS[0], SPELL_PACK_KODO, "Reins of the Pack Kodo", DISPLAY["reins_kodo"]),
-            (ALLIANCE, REINS[1], SPELL_PACK_MULE, "Reins of the Pack Mule", DISPLAY["reins_mule"])):
-        add(item, name, 15, 5, display, 4, bonding=1, rep_faction=faction, rep_rank=EXALTED, skill=762,
-            skill_rank=150, spell=LEARN, spell2=spell, trigger2=6, level=40)
-    for faction, item in zip((HORDE, ALLIANCE), TREATS):
-        add(item, "Packmule Treat", 15, 2, DISPLAY["treat"], 2, bonding=1, rep_faction=faction, rep_rank=REVERED,
-            spell=LEARN, spell2=SPELL_MINIMULE, trigger2=6, sell=1250)
+    # The mounts and the Minimule need no reputation, as Forever's (its items name no faction); each side's
+    # handler or Supply Officer sells its own copy.
+    for item, spell, name, display in (
+            (REINS[0], SPELL_PACK_KODO, "Reins of the Pack Kodo", DISPLAY["reins_kodo"]),
+            (REINS[1], SPELL_PACK_MULE, "Reins of the Pack Mule", DISPLAY["reins_mule"])):
+        add(item, name, 15, 5, display, 4, bonding=1, skill=762, skill_rank=150, spell=LEARN, spell2=spell,
+            trigger2=6, level=40)
+    for item in TREATS:
+        add(item, "Packmule Treat", 15, 2, DISPLAY["treat"], 2, bonding=1, spell=LEARN, spell2=SPELL_MINIMULE,
+            trigger2=6, sell=1250)
 
     # Forever's tabards: cloth, unique, item level 20.
     for faction, item, name, display in (

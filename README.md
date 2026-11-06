@@ -75,11 +75,11 @@ server's reputation rates and racial bonuses like any quest reputation.
 
 | From | Item | Favor | Needs |
 | --- | --- | --- | --- |
-| Supply Officer | Packmule Treat: the Minimule companion | 1,500 | Revered |
+| Supply Officer | Packmule Treat: the Minimule companion | 1,500 | |
 | Supply Officer | Advertising License Application (see below) | 1,200 | Honored |
 | Supply Officer | Durotar Supply and Logistics Tabard (Horde), Azeroth Commerce Authority Tabard (Alliance) | 200 | Exalted |
-| Kodo Handler (Horde) | Reins of the Pack Kodo: a 100% ground mount | 6,000 | Exalted, Journeyman Riding |
-| Mule Handler (Alliance) | Reins of the Pack Mule: a 100% ground mount | 6,000 | Exalted, Journeyman Riding |
+| Kodo Handler (Horde) | Reins of the Pack Kodo: a 100% ground mount | 6,000 | Journeyman Riding |
+| Mule Handler (Alliance) | Reins of the Pack Mule: a 100% ground mount | 6,000 | Journeyman Riding |
 | Uncertified Scribe | Forger's Quill | 15 | Honored |
 | Uncertified Scribe | Forged Delivery Receipt | 15 | |
 | Each profession vendor (shown at 300 skill) | Its Certification: the title "the Alchemist", "the Blacksmith", "the Enchanter", "the Engineer", "the Leatherworker" or "the Tailor" | 1,000 | 300 skill |
